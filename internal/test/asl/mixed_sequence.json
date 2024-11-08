@@ -15,7 +15,7 @@
       "FifthState": {
         "Type": "Task",
         "Resource": "inc",
-        "End": true
+        "Next": "SixthState"
       },
       "FirstState": {
         "Type": "Task",
@@ -26,6 +26,21 @@
         "Type": "Task",
         "Resource": "inc",
         "Next": "FourthState"
+      },
+      "SixthState": {
+        "Type": "Task",
+        "Resource": "double",
+        "Next": "SeventhState"
+      },
+      "SeventhState": {
+        "Type": "Task",
+        "Resource": "inc",
+        "Next": "EightState"
+      },
+      "EightState": {
+        "Type": "Task",
+        "Resource": "double",
+        "End": true
       }
     }
   }

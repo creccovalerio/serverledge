@@ -93,7 +93,7 @@ func RetrievePartialData(reqId ReqId, nodeId DagNodeId, alsoFromEtcd bool) ([]*P
 		// cache miss - retrieve partialData from ETCD
 		partialDatas, err = getPartialDataFromEtcd(reqId, nodeId)
 		if err != nil {
-			return nil, fmt.Errorf("partial data not found in cache and in etcd: %v\n", err)
+			return nil, fmt.Errorf("\npartial data not found in cache and in etcd: %v", err)
 		}
 		// insert a new element to the cache
 		ok := savePartialDataInCache(partialDatas...)
@@ -243,13 +243,13 @@ func getPartialDataFromCache(pdId PartialDataId, nodeId DagNodeId) ([]*PartialDa
 	defer pdCacheMutex.Unlock()
 	subMap, ok := pdCache.Load(pdId)
 	if !ok {
-		return nil, fmt.Errorf("cannot find partial data submap for request id %s\n", pdId)
+		return nil, fmt.Errorf("\ncannot find partial data submap for request id %s", pdId)
 	}
 	subMapTyped := subMap.(*sync.Map)
 	// getting the slice
 	slice, sliceFound := subMapTyped.Load(nodeId)
 	if !sliceFound {
-		return nil, fmt.Errorf("cannot find slice of partial data for request id %s and dag node %s\n", pdId, nodeId)
+		return nil, fmt.Errorf("\ncannot find slice of partial data for request id %s and dag node %s", pdId, nodeId)
 	}
 	sliceTyped := slice.([]*PartialData)
 	// end debug

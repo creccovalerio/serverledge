@@ -209,7 +209,9 @@ func InvokeFunctionComposition(e echo.Context) error {
 	fcReq.RequestQoSMap = fcInvocationRequest.RequestQoSMap
 
 	fcReq.CanDoOffloading = fcInvocationRequest.CanDoOffloading
+	fcReq.CanDoFcOffloading = fcInvocationRequest.CanDoFcOffloading
 	fcReq.Async = fcInvocationRequest.Async
+	fcReq.Iteration = 0
 	fcReq.ReqId = fmt.Sprintf("%v-%s%d", funComp.Name, node.NodeIdentifier[len(node.NodeIdentifier)-5:], fcReq.Arrival.Nanosecond())
 	// init fields if possibly not overwritten later
 	fcReq.ExecReport.Reports = hashmap.New[fc.ExecutionReportId, *function.ExecutionReport]() // make(map[fc.ExecutionReportId]*function.ExecutionReport)
@@ -245,10 +247,94 @@ func InvokeFunctionComposition(e echo.Context) error {
 	} else {
 		reports := make(map[string]*function.ExecutionReport)
 		fcReq.ExecReport.Reports.Range(func(id fc.ExecutionReportId, report *function.ExecutionReport) bool {
+			fmt.Println("-----> REPORT ID: ", string(id), report)
 			reports[string(id)] = report
 			return true
 		})
 
+		return e.JSON(http.StatusOK, fc.CompositionResponse{
+			Success:      true,
+			Result:       fcReq.ExecReport.Result,
+			Reports:      reports,
+			ResponseTime: fcReq.ExecReport.ResponseTime,
+		})
+	}
+}
+
+func ExecuteOffloadedFunctionComposition(e echo.Context) error {
+
+	// gets the command line param value for -fc (the composition name)
+	fmt.Println("\nHANDLING OFFLOADED REQ")
+	fcName := e.Param("fc")
+	funComp, ok := fc.GetFC(fcName)
+	if !ok {
+		log.Printf("Dropping request for unknown FC '%s'", fcName)
+		return e.JSON(http.StatusNotFound, "function composition '"+fcName+"' does not exist")
+	}
+
+	// we use invocation request that is specific to function compositions
+	var fcInvocationRequest client.CompositionInvocationRequest
+	exe_reports := hashmap.New[fc.ExecutionReportId, *function.ExecutionReport]() // make(map[fc.ExecutionReportId]*function.ExecutionReport)
+	fmt.Println("\nCREATED exe_reports")
+
+	err := json.NewDecoder(e.Request().Body).Decode(&fcInvocationRequest)
+	if err != nil && err != io.EOF {
+		log.Printf("Could not parse invoke request - error during decoding: %v", err)
+		return e.JSON(http.StatusInternalServerError, "failed to parse composition invocation request. Check parameters and composition definition")
+	}
+
+	// gets a fc.CompositionRequest from the pool goroutine-safe cache.
+	fcReq := compositionRequestsPool.Get().(*fc.CompositionRequest) // A pointer *function.CompositionRequest will be created if does not exists, otherwise removed from the pool
+	defer compositionRequestsPool.Put(fcReq)                        // at the end of the function, the function.CompositionRequest is added to the pool.
+	fcReq.Fc = funComp
+	fcReq.Params = fcInvocationRequest.Params
+	fcReq.Arrival = time.Now()
+
+	// instead of saving only one RequestQoS, we save a map with an entry for each function in the composition
+	//fcReq.RequestQoSMap = fcInvocationRequest.RequestQoSMap
+
+	fcReq.CanDoOffloading = fcInvocationRequest.CanDoOffloading
+	//fcReq.Async = fcInvocationRequest.Async
+	fcReq.ReqId = fcInvocationRequest.ReqId
+	//fcReq.ExecReport.Reports = hashmap.New[fc.ExecutionReportId, *function.ExecutionReport]() // make(map[fc.ExecutionReportId]*function.ExecutionReport)
+
+	for key, report := range fcInvocationRequest.Reports {
+		fmt.Println("-----> REMOTE REPORT ID: ", string(key), report)
+		exe_reports.Set(fc.ExecutionReportId(key), report)
+	}
+
+	fcReq.ExecReport.Reports = exe_reports
+
+	if fcReq.Async {
+		go fc_scheduling.SubmitAsyncOffloadCompositionRequest(fcReq)
+		return e.JSON(http.StatusOK, function.AsyncResponse{ReqId: fcReq.ReqId})
+	}
+
+	// sync execution
+	fmt.Println("\nFC_SCHEDULING OFF LAUNCHING: ", fcReq.ReqId, fcReq.Fc, fcReq.Params)
+	err = fc_scheduling.SubmitOffloadCompositionRequest(fcReq)
+
+	if errors.Is(err, node.OutOfResourcesErr) {
+		return e.String(http.StatusTooManyRequests, "")
+	} else if err != nil {
+		log.Printf("Invocation failed: %v", err)
+		v := struct {
+			Error    string
+			Progress string
+		}{
+			Error:    err.Error(),
+			Progress: fcReq.ExecReport.Progress.PrettyString(),
+		}
+		return e.JSON(http.StatusInternalServerError, v)
+	} else {
+		reports := make(map[string]*function.ExecutionReport)
+		fcReq.ExecReport.Reports.Range(func(id fc.ExecutionReportId, report *function.ExecutionReport) bool {
+			fmt.Println("-----> REMOTE REPORT ID: ", string(id), report)
+			reports[string(id)] = report
+			return true
+		})
+
+		fmt.Println("\nRETURNING: ", fcReq.ExecReport.Result)
 		return e.JSON(http.StatusOK, fc.CompositionResponse{
 			Success:      true,
 			Result:       fcReq.ExecReport.Result,

@@ -13,6 +13,7 @@ import (
 	"github.com/grussorusso/serverledge/internal/api"
 	"github.com/grussorusso/serverledge/internal/cache"
 	"github.com/grussorusso/serverledge/internal/config"
+	"github.com/grussorusso/serverledge/internal/fc"
 	"github.com/grussorusso/serverledge/internal/metrics"
 	"github.com/grussorusso/serverledge/internal/node"
 	"github.com/grussorusso/serverledge/internal/registration"
@@ -140,6 +141,9 @@ func main() {
 
 	schedulingPolicy := api.CreateSchedulingPolicy()
 	go scheduling.Run(schedulingPolicy)
+
+	fcSchedulingPolicy := api.CreateFcSchedulingPolicy()
+	go fc.Run(fcSchedulingPolicy)
 
 	if !isInCloud {
 		err = registration.InitEdgeMonitoring(registry)

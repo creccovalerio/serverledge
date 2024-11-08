@@ -105,6 +105,8 @@ var outputs []string
 var params []string
 var paramsFile string
 var asyncInvocation bool
+var canDoFunctionOffloading bool
+var canDoFunctionCompositionOffloading bool
 var verbose bool
 var returnOutput bool
 var rmFnOnDeletion bool
@@ -153,6 +155,8 @@ func Init() {
 	compInvokeCmd.Flags().StringSliceVarP(&params, "param", "p", nil, "Composition parameter: <name>:<value>")
 	compInvokeCmd.Flags().StringVarP(&paramsFile, "params_file", "j", "", "File containing parameters (JSON) for composition")
 	compInvokeCmd.Flags().BoolVarP(&asyncInvocation, "async", "a", false, "Asynchronous composition invocation")
+	compInvokeCmd.Flags().BoolVarP(&canDoFunctionOffloading, "function_offload", "o", false, "Allowing single function offload")
+	compInvokeCmd.Flags().BoolVarP(&canDoFunctionCompositionOffloading, "fc_offload", "t", false, "Allowing workflow offload")
 
 	rootCmd.AddCommand(compCreateCmd)
 	compCreateCmd.Flags().StringVarP(&compName, "function-composition", "f", "", "name of the function")
@@ -488,9 +492,10 @@ func invokeFunctionComposition(cmd *cobra.Command, args []string) {
 		Params:   paramsMap,
 		QoSClass: api.DecodeServiceClass(qosClass),
 		// QoSClass:        qosClass,
-		QoSMaxRespT:     qosMaxRespT,
-		CanDoOffloading: true,
-		Async:           asyncInvocation}
+		QoSMaxRespT:       qosMaxRespT,
+		CanDoOffloading:   canDoFunctionOffloading,
+		CanDoFcOffloading: canDoFunctionCompositionOffloading,
+		Async:             asyncInvocation}
 	invocationBody, err := json.Marshal(request)
 	if err != nil {
 		cmd.Help()

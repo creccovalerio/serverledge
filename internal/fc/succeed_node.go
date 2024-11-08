@@ -49,6 +49,7 @@ func (s *SucceedNode) Exec(compRequest *CompositionRequest, params ...map[string
 		SchedAction:    "",
 	}
 	compRequest.ExecReport.Reports.Set(CreateExecutionReportId(s), execReport)
+	//compRequest.ExecReport.Reports[CreateExecutionReportId(s)] = execReport
 	return output, err
 }
 

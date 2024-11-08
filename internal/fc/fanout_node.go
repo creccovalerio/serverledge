@@ -129,7 +129,7 @@ func (f *FanOutNode) Exec(compRequest *CompositionRequest, params ...map[string]
 		Duration:       respAndDuration,
 		SchedAction:    "",
 	}
-	// compRequest.ExecReport.Reports[CreateExecutionReportId(f)] = execReport
+	//compRequest.ExecReport.Reports[CreateExecutionReportId(f)] = execReport
 	compRequest.ExecReport.Reports.Set(CreateExecutionReportId(f), execReport)
 	return output, err
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/grussorusso/serverledge/internal/cache"
 	"github.com/grussorusso/serverledge/internal/config"
+	"github.com/grussorusso/serverledge/internal/fc"
 	"github.com/grussorusso/serverledge/internal/node"
 	"github.com/grussorusso/serverledge/internal/registration"
 	"github.com/grussorusso/serverledge/internal/scheduling"
@@ -35,6 +36,7 @@ func StartAPIServer(e *echo.Echo) {
 	e.POST("/composeASL", CreateFunctionCompositionFromASL)
 	e.POST("/uncompose", DeleteFunctionComposition)
 	e.GET("/fc", GetFunctionCompositions)
+	e.POST("/offload/:fc", ExecuteOffloadedFunctionComposition)
 
 	// Start server
 	portNumber := config.GetInt(config.API_PORT, 1323)
@@ -98,7 +100,7 @@ func RegisterTerminationHandler(r *registration.Registry, e *echo.Echo) {
 
 func CreateSchedulingPolicy() scheduling.Policy {
 	policyConf := config.GetString(config.SCHEDULING_POLICY, "default")
-	log.Printf("Configured policy: %s\n", policyConf)
+	log.Printf("\nConfigured policy: %s", policyConf)
 	if policyConf == "cloudonly" {
 		return &scheduling.CloudOnlyPolicy{}
 	} else if policyConf == "edgecloud" {
@@ -110,4 +112,15 @@ func CreateSchedulingPolicy() scheduling.Policy {
 	} else { // default, localonly
 		return &scheduling.DefaultLocalPolicy{}
 	}
+}
+
+func CreateFcSchedulingPolicy() fc.FcPolicy {
+	policyConf := config.GetString(config.SCHEDULING_FC_POLICY, "default")
+	log.Printf("\nConfigured fc policy: %s", policyConf)
+	if policyConf == "edgecloud" {
+		return &fc.CloudEdgePolicy{}
+	} else { // default, localonly
+		return &fc.DefaultLocalPolicy{}
+	}
+
 }

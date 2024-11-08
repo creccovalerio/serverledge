@@ -6,12 +6,13 @@ import (
 
 // InvocationRequest is an external invocation of a function (from API or CLI)
 type InvocationRequest struct {
-	Params          map[string]interface{}
-	QoSClass        function.ServiceClass
-	QoSMaxRespT     float64
-	CanDoOffloading bool
-	Async           bool
-	ReturnOutput    bool
+	Params            map[string]interface{}
+	QoSClass          function.ServiceClass
+	QoSMaxRespT       float64
+	CanDoOffloading   bool
+	CanDoFcOffloading bool
+	Async             bool
+	ReturnOutput      bool
 }
 
 type PrewarmingRequest struct {
@@ -22,11 +23,14 @@ type PrewarmingRequest struct {
 
 // CompositionInvocationRequest is an external invocation of a function composition (from API or CLI)
 type CompositionInvocationRequest struct {
-	Params          map[string]interface{}
-	RequestQoSMap   map[string]function.RequestQoS
-	QosMaxRespT     float64
-	CanDoOffloading bool
-	Async           bool
+	ReqId             string
+	Params            map[string]interface{}
+	RequestQoSMap     map[string]function.RequestQoS
+	Reports           map[string]*function.ExecutionReport
+	QosMaxRespT       float64
+	CanDoOffloading   bool
+	CanDoFcOffloading bool
+	Async             bool
 	// NextNodes       []string // DagNodeId
 	// we do not add Progress here, only the next group of node that should execute
 	// in case of choice node, we retrieve the progress for each dagNodeId and execute only the one that is not in Skipped State

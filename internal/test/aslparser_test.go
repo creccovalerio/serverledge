@@ -51,7 +51,7 @@ func commonTest(t *testing.T, name string, expectedResult int) {
 	// runs the workflow
 	params := make(map[string]interface{})
 	params[f.Signature.GetInputs()[0].Name] = 0
-	request := fc.NewCompositionRequest(shortuuid.New(), comp, params)
+	request := fc.NewCompositionRequest(shortuuid.New(), comp, params, true, false, false)
 	resultMap, err2 := comp.Invoke(request)
 	utils.AssertNil(t, err2)
 
@@ -154,7 +154,7 @@ func TestParsingChoiceFunctionDagWithDefaultFail(t *testing.T) {
 	// runs the workflow, making it going to the fail part
 	params := make(map[string]interface{})
 	params[incFn.Signature.GetInputs()[0].Name] = 0
-	request := fc.NewCompositionRequest(shortuuid.New(), comp, params)
+	request := fc.NewCompositionRequest(shortuuid.New(), comp, params, true, false, false)
 	resultMap, err2 := comp.Invoke(request)
 	utils.AssertNil(t, err2)
 
@@ -194,7 +194,7 @@ func TestParsingChoiceDagWithDataTestExpr(t *testing.T) {
 	fmt.Println("1st branch invocation (if input == 1)... ")
 	params1 := make(map[string]interface{})
 	params1[incFn.Signature.GetInputs()[0].Name] = 1
-	request1 := fc.NewCompositionRequest(shortuuid.New(), comp, params1)
+	request1 := fc.NewCompositionRequest(shortuuid.New(), comp, params1, true, false, false)
 	resultMap1, err1 := comp.Invoke(request1)
 	utils.AssertNil(t, err1)
 
@@ -207,7 +207,7 @@ func TestParsingChoiceDagWithDataTestExpr(t *testing.T) {
 	fmt.Println("2nd branch invocation (else if input == 2)...")
 	params2 := make(map[string]interface{})
 	params2[incFn.Signature.GetInputs()[0].Name] = 2
-	request2 := fc.NewCompositionRequest(shortuuid.New(), comp, params2)
+	request2 := fc.NewCompositionRequest(shortuuid.New(), comp, params2, true, false, false)
 	resultMap, err2 := comp.Invoke(request2)
 	utils.AssertNil(t, err2)
 
@@ -221,7 +221,7 @@ func TestParsingChoiceDagWithDataTestExpr(t *testing.T) {
 	fmt.Println("Default branch invocation...")
 	paramsDefault := make(map[string]interface{})
 	paramsDefault[incFn.Signature.GetInputs()[0].Name] = "Giacomo"
-	requestDefault := fc.NewCompositionRequest(shortuuid.New(), comp, paramsDefault)
+	requestDefault := fc.NewCompositionRequest(shortuuid.New(), comp, paramsDefault, true, false, false)
 	resultMap, errDef := comp.Invoke(requestDefault)
 	utils.AssertNil(t, errDef)
 	fmt.Printf("Composition Execution Report: %s\n", resultMap.String())
@@ -248,7 +248,7 @@ func TestParsingChoiceDagWithBoolExpr(t *testing.T) {
 	params["type"] = "Public"
 	params["value"] = 1
 	//params["input"] = 1
-	request := fc.NewCompositionRequest(shortuuid.New(), comp, params)
+	request := fc.NewCompositionRequest(shortuuid.New(), comp, params, true, false, false)
 	resultMap, err1 := comp.Invoke(request)
 	utils.AssertNil(t, err1)
 
@@ -263,7 +263,7 @@ func TestParsingChoiceDagWithBoolExpr(t *testing.T) {
 	params2 := make(map[string]interface{})
 	params2["type"] = "Private"
 	params2["value"] = 20
-	request2 := fc.NewCompositionRequest(shortuuid.New(), comp, params2)
+	request2 := fc.NewCompositionRequest(shortuuid.New(), comp, params2, true, false, false)
 	resultMap2, err2 := comp.Invoke(request2)
 	utils.AssertNil(t, err2)
 
@@ -277,7 +277,7 @@ func TestParsingChoiceDagWithBoolExpr(t *testing.T) {
 	fmt.Println("default branch (we specify nothing instead of a number)")
 	params3 := make(map[string]interface{})
 	params3["type"] = "Private"
-	request3 := fc.NewCompositionRequest(shortuuid.New(), comp, params3)
+	request3 := fc.NewCompositionRequest(shortuuid.New(), comp, params3, true, false, false)
 	resultMap3, err2 := comp.Invoke(request3)
 	utils.AssertNil(t, err2)
 	fmt.Printf("Composition Execution Report: %s\n", resultMap3.String())

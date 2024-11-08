@@ -71,6 +71,7 @@ func (w *WaitNode) Exec(compRequest *CompositionRequest, params ...map[string]in
 		SchedAction:    "",
 	}
 	compRequest.ExecReport.Reports.Set(CreateExecutionReportId(w), execReport)
+	//compRequest.ExecReport.Reports[CreateExecutionReportId(w)] = execReport
 	return output, err
 }
 

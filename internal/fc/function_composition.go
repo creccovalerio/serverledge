@@ -5,16 +5,23 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"runtime"
 	"time"
 
 	"github.com/cornelk/hashmap"
 	"github.com/grussorusso/serverledge/internal/cache"
+	"github.com/grussorusso/serverledge/internal/config"
 	"github.com/grussorusso/serverledge/internal/function"
+	"github.com/grussorusso/serverledge/internal/metrics"
+	"github.com/grussorusso/serverledge/internal/node"
 	"github.com/grussorusso/serverledge/internal/types"
 	"github.com/grussorusso/serverledge/utils"
 	"github.com/labstack/gommon/log"
 	"golang.org/x/exp/slices"
 )
+
+var offloadingClient *http.Client
 
 // FunctionComposition is a serverless Function Composition
 type FunctionComposition struct {
@@ -23,6 +30,32 @@ type FunctionComposition struct {
 	Workflow           Dag
 	RemoveFnOnDeletion bool
 }
+
+type scheduledFcRequest struct {
+	//*function.Request /* Non function.Request ma Fc.Request*/
+	*CompositionRequest
+	fcDecisionChannel chan fcSchedDecision
+	priority          float64
+}
+
+type completion struct {
+	*scheduledFcRequest
+	//contID container.ContainerID
+}
+
+type fcSchedDecision struct {
+	action     action
+	remoteHost string
+}
+
+type action int64
+
+const (
+	DROP                  action = 0
+	EXEC_LOCAL                   = 1
+	EXEC_REMOTE                  = 2
+	BEST_EFFORT_EXECUTION        = 3
+)
 
 type ExecutionReportId string
 
@@ -198,12 +231,97 @@ func (fc *FunctionComposition) SaveToEtcd() error {
 	return nil
 }
 
+var requests chan *scheduledFcRequest
+var completions chan *completion
+var remoteServerUrl string
+
+func Run(p FcPolicy) {
+	requests = make(chan *scheduledFcRequest, 500)
+	completions = make(chan *completion, 500)
+
+	// initialize Resources resources
+	availableCores := runtime.NumCPU()
+	node.Resources.AvailableMemMB = int64(config.GetInt(config.POOL_MEMORY_MB, 1024))
+	node.Resources.AvailableCPUs = config.GetFloat(config.POOL_CPUS, float64(availableCores))
+	//node.Resources.ContainerPools = make(map[string]*node.ContainerPool)
+	log.Printf("Current resources: %v\n", &node.Resources)
+
+	//container.InitDockerContainerFactory()
+
+	//janitor periodically remove expired warm container
+	//node.GetJanitorInstance()
+
+	tr := &http.Transport{
+		MaxIdleConns:        2500,
+		MaxIdleConnsPerHost: 2500,
+		MaxConnsPerHost:     0,
+		IdleConnTimeout:     30 * time.Minute,
+	}
+	offloadingClient = &http.Client{Transport: tr}
+
+	// initialize workflow scheduling policy
+	p.Init()
+
+	remoteServerUrl = config.GetString(config.CLOUD_URL, "")
+
+	fmt.Println("Fc Scheduler started, with CLOUD_URL: ", remoteServerUrl)
+
+	var r *scheduledFcRequest
+	var c *completion
+	for {
+		select {
+		case r = <-requests: // receive request
+			go p.OnArrival(r)
+		case c = <-completions:
+			//node.ReleaseContainer(c.contID, c.Fun)
+			p.OnCompletion(c.scheduledFcRequest)
+
+			if metrics.Enabled {
+				//metrics.AddCompletedFcInvocation(c.Fc.Name)
+				//metrics.AddCompletedInvocation(c.Fc.Name)
+				//if c.ExecReport.SchedAction != SCHED_ACTION_OFFLOAD {
+				//	metrics.AddFunctionDurationValue(c.Fun.Name, c.ExecReport.Duration)
+				//}
+			}
+		}
+	}
+
+}
+
+func dropRequest(r *scheduledFcRequest) {
+	r.fcDecisionChannel <- fcSchedDecision{action: DROP}
+}
+
+func handleOffload(r *scheduledFcRequest, serverHost string) {
+	r.CanDoOffloading = false // the next server can't offload this request
+	r.fcDecisionChannel <- fcSchedDecision{
+		action:     EXEC_REMOTE,
+		remoteHost: serverHost,
+	}
+}
+
+func handleCloudOffload(r *scheduledFcRequest) {
+	cloudAddress := config.GetString(config.CLOUD_URL, "")
+	handleOffload(r, cloudAddress)
+}
+
+func handleLocal(r *scheduledFcRequest) {
+	r.fcDecisionChannel <- fcSchedDecision{
+		action: EXEC_LOCAL,
+	}
+}
+
+func handleExecuteLocal(r *scheduledFcRequest) {
+	handleLocal(r)
+}
+
 // Invoke schedules each function of the composition and invokes them
 func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecutionReport, error) {
 
 	var err error
 	requestId := ReqId(r.ReqId)
 	input := r.Params
+	var isInfoSaved = false
 	// initialize struct progress from dag
 	progress := InitProgressRecursive(requestId, &fc.Workflow)
 
@@ -213,12 +331,118 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 
 	shouldContinue := true
 	for shouldContinue {
+
+		fmt.Println("\nIteration: ", r.Iteration, r.CanDoFcOffloading)
+		schedFcRequest := scheduledFcRequest{
+			CompositionRequest: r,
+			fcDecisionChannel:  make(chan fcSchedDecision, 1)}
+		requests <- &schedFcRequest // send request
+		fcSchedDecision, ok := <-schedFcRequest.fcDecisionChannel
+		if !ok {
+			return CompositionExecutionReport{Result: nil, Progress: progress}, fmt.Errorf("failed scheduling fc request execution: %v", err)
+		}
+		if fcSchedDecision.action == EXEC_LOCAL {
+			fmt.Println("\nEXEC LOCAL ")
+			pd, progress, shouldContinue, err = fc.Workflow.Execute(r, pd, progress)
+			if err != nil {
+				progress.Print()
+				return CompositionExecutionReport{Result: nil, Progress: progress}, fmt.Errorf("failed dag execution: %v", err)
+			}
+			fmt.Println("\nEXEC LOCAL OUTPUT: ", pd.Data)
+			r.Iteration++
+		} else if fcSchedDecision.action == EXEC_REMOTE {
+			fmt.Println("\nEXEC REMOTE ")
+			err := savePartialDataToEtcd(pd)
+			if err != nil {
+				return CompositionExecutionReport{}, err
+			}
+			err = saveProgressToEtcd(progress)
+			if err != nil {
+				return CompositionExecutionReport{}, err
+			}
+
+			/* flag to use in order to execute DeleteProgress and DeleteAllPartialData only if
+			 * progress and partial data have been stored in etcd during workflow offloading */
+			isInfoSaved = true
+
+			fmt.Println("\nINFO SAVED ON ETCD: ", pd.Data)
+			// preparing workflow offloading request
+			response, err := WorkflowOffload(r, fcSchedDecision.remoteHost, r.ExecReport.Reports)
+			if err != nil {
+				return CompositionExecutionReport{}, err
+			}
+			pd.Data = response.Result // WorkflowOffload has executed interaly the remaining part of the workflow
+			r.ExecReport.Reports = response.Reports
+			r.Iteration++
+
+			break
+		} else {
+			// drop case
+			return CompositionExecutionReport{}, err
+		}
+	}
+
+	// deleting progresses and partial datas from cache and etcd
+	if isInfoSaved {
+		err = DeleteProgress(requestId, cache.Persist)
+		if err != nil {
+			return CompositionExecutionReport{}, err
+		}
+		_, errDel := DeleteAllPartialData(requestId, cache.Persist)
+		if errDel != nil {
+			return CompositionExecutionReport{}, errDel
+		}
+	}
+
+	// fmt.Printf("Succesfully deleted %d partial datas and progress for request %s\n", removed, requestId)
+	//r.ExecReport.Result = result.Data
+	fmt.Println("\nEXEC FINAL OUTPUT: ", pd.Data, r.ExecReport.Reports)
+	r.ExecReport.Result = pd.Data
+
+	//progress.NextGroup = -1
+	//r.ExecReport.Progress = progress
+	return r.ExecReport, nil
+}
+
+// Invoke schedules each function of the composition and invokes them
+func (fc *FunctionComposition) InvokeFunctionCompositionOffload(r *CompositionRequest) (CompositionExecutionReport, error) {
+
+	var err error
+	requestId := ReqId(r.ReqId)
+	fmt.Println("\nOFFLOADED FC ID: ", requestId)
+	// initialize struct progress from dag
+	//progress := InitProgressRecursive(requestId, &fc.Workflow)
+
+	progress, found := RetrieveProgress(requestId, cache.Persist)
+	if !found {
+		return CompositionExecutionReport{Result: nil, Progress: progress}, fmt.Errorf("progress not found")
+	}
+
+	fmt.Println("\nPROGRESS RETRIEVED: ", progress.ReqId)
+	// initialize partial data with input, directly from the Start.Next node
+	//pd := NewPartialData(requestId, fc.Workflow.Start.Next, "nil", input)
+	nextNodes, err := progress.NextNodes()
+	if err != nil {
+		return CompositionExecutionReport{Result: nil, Progress: progress}, fmt.Errorf("failed to get next nodes from progress: %v", err)
+	}
+
+	pd, err := RetrieveSinglePartialData(requestId, nextNodes[0], cache.Persist)
+	if err != nil {
+		return CompositionExecutionReport{Result: nil, Progress: progress}, fmt.Errorf("failed to get partial data: %v", err)
+	}
+
+	fmt.Println("\nPARTIAL DATA RETRIEVED: ", pd.Data)
+
+	shouldContinue := true
+	for shouldContinue {
 		// executing dag
+		fmt.Println("SHOULDCONT CYCLE: ", pd.Data)
 		pd, progress, shouldContinue, err = fc.Workflow.Execute(r, pd, progress)
 		if err != nil {
 			progress.Print()
 			return CompositionExecutionReport{Result: nil, Progress: progress}, fmt.Errorf("failed dag execution: %v", err)
 		}
+		fmt.Println("\nPD OUTPUT: ", pd.Data)
 	}
 
 	if !shouldContinue {
@@ -233,15 +457,16 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 		}
 	}
 
-	// deleting progresses and partial datas from cache and etcd
-	err = DeleteProgress(requestId, cache.Persist)
-	if err != nil {
-		return CompositionExecutionReport{}, err
-	}
-	_, errDel := DeleteAllPartialData(requestId, cache.Persist)
-	if errDel != nil {
-		return CompositionExecutionReport{}, errDel
-	}
+	/*
+		// deleting progresses and partial datas from cache and etcd
+		err = DeleteProgress(requestId, cache.Persist)
+		if err != nil {
+			return CompositionExecutionReport{}, err
+		}
+		_, errDel := DeleteAllPartialData(requestId, cache.Persist)
+		if errDel != nil {
+			return CompositionExecutionReport{}, errDel
+		}*/
 	// fmt.Printf("Succesfully deleted %d partial datas and progress for request %s\n", removed, requestId)
 	//r.ExecReport.Result = result.Data
 	r.ExecReport.Result = pd.Data
@@ -361,13 +586,13 @@ func (cer CompositionExecutionReport) MarshalJSON() ([]byte, error) {
 	data["Result"] = cer.Result // al posto del nome potrebbe essere un id da mettere in etcd
 	data["ResponseTime"] = cer.ResponseTime
 
-	reports := make(map[ExecutionReportId]*function.ExecutionReport)
+	//reports := make(map[ExecutionReportId]*function.ExecutionReport)
 
-	cer.Reports.Range(func(id ExecutionReportId, report *function.ExecutionReport) bool {
-		reports[id] = report
-		return true
-	})
-	data["Reports"] = reports
+	//cer.Reports.Range(func(id ExecutionReportId, report *function.ExecutionReport) bool {
+	//	reports[id] = report
+	//	return true
+	//})
+	data["Reports"] = cer.Reports
 
 	return json.Marshal(data)
 }

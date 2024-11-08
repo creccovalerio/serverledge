@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
+
 	"github.com/grussorusso/serverledge/internal/fc"
 	"github.com/grussorusso/serverledge/utils"
 	clientv3 "go.etcd.io/etcd/client/v3"
-	"log"
 )
 
 func PublishAsyncCompositionResponse(reqId string, response fc.CompositionResponse) {

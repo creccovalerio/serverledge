@@ -66,5 +66,8 @@ const METRICS_PROMETHEUS_PORT = "metrics.prometheus.port"
 // Possible values: "qosaware", "default", "cloudonly"
 const SCHEDULING_POLICY = "scheduler.policy"
 
+// Workflow scheduling policy to use
+const SCHEDULING_FC_POLICY = "fc_scheduler.policy"
+
 // Capacity of the queue (possibly) used by the scheduler
 const SCHEDULER_QUEUE_CAPACITY = "scheduler.queue.capacity"

@@ -12,6 +12,7 @@ import (
 
 	"github.com/grussorusso/serverledge/internal/api"
 	"github.com/grussorusso/serverledge/internal/config"
+	"github.com/grussorusso/serverledge/internal/fc"
 	"github.com/grussorusso/serverledge/internal/metrics"
 	"github.com/grussorusso/serverledge/internal/node"
 	"github.com/grussorusso/serverledge/internal/registration"
@@ -47,6 +48,7 @@ func testStartServerledge(isInCloud bool, outboundIp string) (*registration.Regi
 	//setting up cache parameters
 	api.CacheSetup()
 	schedulingPolicy := &scheduling.DefaultLocalPolicy{}
+	schedulingFcPolicy := &fc.CloudEdgePolicy{}
 	// register to etcd, this way server is visible to the others under a given local area
 	registry := new(registration.Registry)
 	if isInCloud {
@@ -78,6 +80,7 @@ func testStartServerledge(isInCloud bool, outboundIp string) (*registration.Regi
 	api.RegisterTerminationHandler(registry, e)
 
 	go scheduling.Run(schedulingPolicy)
+	go fc.Run(schedulingFcPolicy)
 
 	if !isInCloud {
 		err = registration.InitEdgeMonitoring(registry)

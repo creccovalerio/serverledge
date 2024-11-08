@@ -58,6 +58,7 @@ func (f *FailNode) Exec(compRequest *CompositionRequest, params ...map[string]in
 		SchedAction:    "",
 	}
 	compRequest.ExecReport.Reports.Set(CreateExecutionReportId(f), execReport)
+	//compRequest.ExecReport.Reports[CreateExecutionReportId(f)] = execReport
 	return output, err
 }
 

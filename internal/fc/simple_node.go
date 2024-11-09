@@ -126,8 +126,8 @@ func (s *SimpleNode) Exec(compRequest *CompositionRequest, params ...map[string]
 		r.ExecReport.Result = fmt.Sprintf("%v", m)
 	}
 	// saving execution report for this function
-	//compRequest.ExecReport.Reports[CreateExecutionReportId(s)] = &r.ExecReport
-	compRequest.ExecReport.Reports.Set(CreateExecutionReportId(s), &r.ExecReport)
+	compRequest.ExecReport.Reports[CreateExecutionReportId(s)] = &r.ExecReport
+	//compRequest.ExecReport.Reports.Set(CreateExecutionReportId(s), &r.ExecReport)
 	/*
 		cs := ""
 		if !r.ExecReport.IsWarmStart {

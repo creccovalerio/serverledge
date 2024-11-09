@@ -44,8 +44,8 @@ func (p *PassNode) Exec(compRequest *CompositionRequest, params ...map[string]in
 		Duration:       respAndDuration,
 		SchedAction:    "",
 	}
-	compRequest.ExecReport.Reports.Set(CreateExecutionReportId(p), execReport)
-	//compRequest.ExecReport.Reports[CreateExecutionReportId(p)] = execReport
+	//compRequest.ExecReport.Reports.Set(CreateExecutionReportId(p), execReport)
+	compRequest.ExecReport.Reports[CreateExecutionReportId(p)] = execReport
 	return output, err
 }
 

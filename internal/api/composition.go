@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cornelk/hashmap"
 	"github.com/grussorusso/serverledge/internal/client"
 	"github.com/grussorusso/serverledge/internal/container"
 	"github.com/grussorusso/serverledge/internal/fc"
@@ -214,14 +213,14 @@ func InvokeFunctionComposition(e echo.Context) error {
 	fcReq.Iteration = 0
 	fcReq.ReqId = fmt.Sprintf("%v-%s%d", funComp.Name, node.NodeIdentifier[len(node.NodeIdentifier)-5:], fcReq.Arrival.Nanosecond())
 	// init fields if possibly not overwritten later
-	fcReq.ExecReport.Reports = hashmap.New[fc.ExecutionReportId, *function.ExecutionReport]() // make(map[fc.ExecutionReportId]*function.ExecutionReport)
+	fcReq.ExecReport.Reports = make(map[fc.ExecutionReportId]*function.ExecutionReport)
 	for nodeId := range funComp.Workflow.Nodes {
 		dagNode := funComp.Workflow.Nodes[nodeId]
 		execReportId := fc.CreateExecutionReportId(dagNode)
-		fcReq.ExecReport.Reports.Set(execReportId, &function.ExecutionReport{
+		fcReq.ExecReport.Reports[execReportId] = &function.ExecutionReport{
 			OffloadLatency: 0,
 			SchedAction:    "",
-		})
+		}
 	}
 
 	if fcReq.Async {
@@ -246,11 +245,9 @@ func InvokeFunctionComposition(e echo.Context) error {
 		return e.JSON(http.StatusInternalServerError, v)
 	} else {
 		reports := make(map[string]*function.ExecutionReport)
-		fcReq.ExecReport.Reports.Range(func(id fc.ExecutionReportId, report *function.ExecutionReport) bool {
-			fmt.Println("-----> REPORT ID: ", string(id), report)
-			reports[string(id)] = report
-			return true
-		})
+		for key, report := range fcReq.ExecReport.Reports {
+			reports[string(key)] = report
+		}
 
 		return e.JSON(http.StatusOK, fc.CompositionResponse{
 			Success:      true,
@@ -264,7 +261,6 @@ func InvokeFunctionComposition(e echo.Context) error {
 func ExecuteOffloadedFunctionComposition(e echo.Context) error {
 
 	// gets the command line param value for -fc (the composition name)
-	fmt.Println("\nHANDLING OFFLOADED REQ")
 	fcName := e.Param("fc")
 	funComp, ok := fc.GetFC(fcName)
 	if !ok {
@@ -274,9 +270,6 @@ func ExecuteOffloadedFunctionComposition(e echo.Context) error {
 
 	// we use invocation request that is specific to function compositions
 	var fcInvocationRequest client.CompositionInvocationRequest
-	exe_reports := hashmap.New[fc.ExecutionReportId, *function.ExecutionReport]() // make(map[fc.ExecutionReportId]*function.ExecutionReport)
-	fmt.Println("\nCREATED exe_reports")
-
 	err := json.NewDecoder(e.Request().Body).Decode(&fcInvocationRequest)
 	if err != nil && err != io.EOF {
 		log.Printf("Could not parse invoke request - error during decoding: %v", err)
@@ -289,29 +282,16 @@ func ExecuteOffloadedFunctionComposition(e echo.Context) error {
 	fcReq.Fc = funComp
 	fcReq.Params = fcInvocationRequest.Params
 	fcReq.Arrival = time.Now()
+	fcReq.CanDoOffloading = fcInvocationRequest.CanDoOffloading
+	fcReq.ReqId = fcInvocationRequest.ReqId
 
 	// instead of saving only one RequestQoS, we save a map with an entry for each function in the composition
 	//fcReq.RequestQoSMap = fcInvocationRequest.RequestQoSMap
-
-	fcReq.CanDoOffloading = fcInvocationRequest.CanDoOffloading
-	//fcReq.Async = fcInvocationRequest.Async
-	fcReq.ReqId = fcInvocationRequest.ReqId
-	//fcReq.ExecReport.Reports = hashmap.New[fc.ExecutionReportId, *function.ExecutionReport]() // make(map[fc.ExecutionReportId]*function.ExecutionReport)
-
+	fcReq.ExecReport.Reports = make(map[fc.ExecutionReportId]*function.ExecutionReport)
 	for key, report := range fcInvocationRequest.Reports {
-		fmt.Println("-----> REMOTE REPORT ID: ", string(key), report)
-		exe_reports.Set(fc.ExecutionReportId(key), report)
+		fcReq.ExecReport.Reports[fc.ExecutionReportId(key)] = report
 	}
 
-	fcReq.ExecReport.Reports = exe_reports
-
-	if fcReq.Async {
-		go fc_scheduling.SubmitAsyncOffloadCompositionRequest(fcReq)
-		return e.JSON(http.StatusOK, function.AsyncResponse{ReqId: fcReq.ReqId})
-	}
-
-	// sync execution
-	fmt.Println("\nFC_SCHEDULING OFF LAUNCHING: ", fcReq.ReqId, fcReq.Fc, fcReq.Params)
 	err = fc_scheduling.SubmitOffloadCompositionRequest(fcReq)
 
 	if errors.Is(err, node.OutOfResourcesErr) {
@@ -328,13 +308,10 @@ func ExecuteOffloadedFunctionComposition(e echo.Context) error {
 		return e.JSON(http.StatusInternalServerError, v)
 	} else {
 		reports := make(map[string]*function.ExecutionReport)
-		fcReq.ExecReport.Reports.Range(func(id fc.ExecutionReportId, report *function.ExecutionReport) bool {
-			fmt.Println("-----> REMOTE REPORT ID: ", string(id), report)
-			reports[string(id)] = report
-			return true
-		})
+		for key, report := range fcReq.ExecReport.Reports {
+			reports[string(key)] = report
+		}
 
-		fmt.Println("\nRETURNING: ", fcReq.ExecReport.Result)
 		return e.JSON(http.StatusOK, fc.CompositionResponse{
 			Success:      true,
 			Result:       fcReq.ExecReport.Result,

@@ -119,8 +119,8 @@ func (f *FanInNode) Exec(compRequest *CompositionRequest, params ...map[string]i
 		Duration:       respAndDuration,
 		SchedAction:    "",
 	}
-	//compRequest.ExecReport.Reports[CreateExecutionReportId(f)] = execReport
-	compRequest.ExecReport.Reports.Set(CreateExecutionReportId(f), execReport)
+	compRequest.ExecReport.Reports[CreateExecutionReportId(f)] = execReport
+	//compRequest.ExecReport.Reports.Set(CreateExecutionReportId(f), execReport)
 	return fanInOutput, nil
 }
 

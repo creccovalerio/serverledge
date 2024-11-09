@@ -41,31 +41,14 @@ func SubmitAsyncCompositionRequest(fcReq *fc.CompositionRequest) {
 		return
 	}
 	reports := make(map[string]*function.ExecutionReport)
-	fcReq.ExecReport.Reports.Range(func(id fc.ExecutionReportId, report *function.ExecutionReport) bool {
+	/*fcReq.ExecReport.Reports.Range(func(id fc.ExecutionReportId, report *function.ExecutionReport) bool {
 		reports[string(id)] = report
 		return true
-	})
-	PublishAsyncCompositionResponse(fcReq.ReqId, fc.CompositionResponse{
-		Success:      true,
-		Result:       fcReq.ExecReport.Result,
-		Reports:      reports,
-		ResponseTime: fcReq.ExecReport.ResponseTime,
-	})
-	fcReq.ExecReport = executionReport
-	fcReq.ExecReport.ResponseTime = time.Now().Sub(fcReq.Arrival).Seconds()
-}
+	})*/
 
-func SubmitAsyncOffloadCompositionRequest(fcReq *fc.CompositionRequest) {
-	executionReport, errInvoke := fcReq.Fc.Invoke(fcReq)
-	if errInvoke != nil {
-		PublishAsyncCompositionResponse(fcReq.ReqId, fc.CompositionResponse{Success: false})
-		return
+	for key, report := range fcReq.ExecReport.Reports {
+		reports[string(key)] = report
 	}
-	reports := make(map[string]*function.ExecutionReport)
-	fcReq.ExecReport.Reports.Range(func(id fc.ExecutionReportId, report *function.ExecutionReport) bool {
-		reports[string(id)] = report
-		return true
-	})
 	PublishAsyncCompositionResponse(fcReq.ReqId, fc.CompositionResponse{
 		Success:      true,
 		Result:       fcReq.ExecReport.Result,

@@ -9,11 +9,9 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/cornelk/hashmap"
 	"github.com/grussorusso/serverledge/internal/cache"
 	"github.com/grussorusso/serverledge/internal/config"
 	"github.com/grussorusso/serverledge/internal/function"
-	"github.com/grussorusso/serverledge/internal/metrics"
 	"github.com/grussorusso/serverledge/internal/node"
 	"github.com/grussorusso/serverledge/internal/types"
 	"github.com/grussorusso/serverledge/utils"
@@ -32,7 +30,6 @@ type FunctionComposition struct {
 }
 
 type scheduledFcRequest struct {
-	//*function.Request /* Non function.Request ma Fc.Request*/
 	*CompositionRequest
 	fcDecisionChannel chan fcSchedDecision
 	priority          float64
@@ -40,7 +37,6 @@ type scheduledFcRequest struct {
 
 type completion struct {
 	*scheduledFcRequest
-	//contID container.ContainerID
 }
 
 type fcSchedDecision struct {
@@ -65,7 +61,7 @@ func CreateExecutionReportId(dagNode DagNode) ExecutionReportId {
 
 type CompositionExecutionReport struct {
 	Result       map[string]interface{}
-	Reports      *hashmap.Map[ExecutionReportId, *function.ExecutionReport]
+	Reports      map[ExecutionReportId]*function.ExecutionReport
 	ResponseTime float64   // time waited by the user to get the output of the entire composition
 	Progress     *Progress `json:"-"` // skipped in Json marshaling
 }
@@ -243,13 +239,7 @@ func Run(p FcPolicy) {
 	availableCores := runtime.NumCPU()
 	node.Resources.AvailableMemMB = int64(config.GetInt(config.POOL_MEMORY_MB, 1024))
 	node.Resources.AvailableCPUs = config.GetFloat(config.POOL_CPUS, float64(availableCores))
-	//node.Resources.ContainerPools = make(map[string]*node.ContainerPool)
 	log.Printf("Current resources: %v\n", &node.Resources)
-
-	//container.InitDockerContainerFactory()
-
-	//janitor periodically remove expired warm container
-	//node.GetJanitorInstance()
 
 	tr := &http.Transport{
 		MaxIdleConns:        2500,
@@ -273,16 +263,15 @@ func Run(p FcPolicy) {
 		case r = <-requests: // receive request
 			go p.OnArrival(r)
 		case c = <-completions:
-			//node.ReleaseContainer(c.contID, c.Fun)
 			p.OnCompletion(c.scheduledFcRequest)
 
-			if metrics.Enabled {
-				//metrics.AddCompletedFcInvocation(c.Fc.Name)
-				//metrics.AddCompletedInvocation(c.Fc.Name)
-				//if c.ExecReport.SchedAction != SCHED_ACTION_OFFLOAD {
-				//	metrics.AddFunctionDurationValue(c.Fun.Name, c.ExecReport.Duration)
-				//}
-			}
+			//if metrics.Enabled {
+			//metrics.AddCompletedFcInvocation(c.Fc.Name)
+			//metrics.AddCompletedInvocation(c.Fc.Name)
+			//if c.ExecReport.SchedAction != SCHED_ACTION_OFFLOAD {
+			//	metrics.AddFunctionDurationValue(c.Fun.Name, c.ExecReport.Duration)
+			//}
+			//}
 		}
 	}
 
@@ -319,9 +308,10 @@ func handleExecuteLocal(r *scheduledFcRequest) {
 func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecutionReport, error) {
 
 	var err error
+	var isInfoSaved = false
 	requestId := ReqId(r.ReqId)
 	input := r.Params
-	var isInfoSaved = false
+
 	// initialize struct progress from dag
 	progress := InitProgressRecursive(requestId, &fc.Workflow)
 
@@ -329,29 +319,25 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 	pd := NewPartialData(requestId, fc.Workflow.Start.Next, "nil", input)
 	pd.Data = input
 
+	schedFcRequest := scheduledFcRequest{
+		CompositionRequest: r,
+		fcDecisionChannel:  make(chan fcSchedDecision, 1)}
+
 	shouldContinue := true
 	for shouldContinue {
-
-		fmt.Println("\nIteration: ", r.Iteration, r.CanDoFcOffloading)
-		schedFcRequest := scheduledFcRequest{
-			CompositionRequest: r,
-			fcDecisionChannel:  make(chan fcSchedDecision, 1)}
 		requests <- &schedFcRequest // send request
 		fcSchedDecision, ok := <-schedFcRequest.fcDecisionChannel
 		if !ok {
 			return CompositionExecutionReport{Result: nil, Progress: progress}, fmt.Errorf("failed scheduling fc request execution: %v", err)
 		}
 		if fcSchedDecision.action == EXEC_LOCAL {
-			fmt.Println("\nEXEC LOCAL ")
 			pd, progress, shouldContinue, err = fc.Workflow.Execute(r, pd, progress)
 			if err != nil {
 				progress.Print()
 				return CompositionExecutionReport{Result: nil, Progress: progress}, fmt.Errorf("failed dag execution: %v", err)
 			}
-			fmt.Println("\nEXEC LOCAL OUTPUT: ", pd.Data)
-			r.Iteration++
+			schedFcRequest.CompositionRequest.Iteration++
 		} else if fcSchedDecision.action == EXEC_REMOTE {
-			fmt.Println("\nEXEC REMOTE ")
 			err := savePartialDataToEtcd(pd)
 			if err != nil {
 				return CompositionExecutionReport{}, err
@@ -365,7 +351,6 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 			 * progress and partial data have been stored in etcd during workflow offloading */
 			isInfoSaved = true
 
-			fmt.Println("\nINFO SAVED ON ETCD: ", pd.Data)
 			// preparing workflow offloading request
 			response, err := WorkflowOffload(r, fcSchedDecision.remoteHost, r.ExecReport.Reports)
 			if err != nil {
@@ -373,7 +358,7 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 			}
 			pd.Data = response.Result // WorkflowOffload has executed interaly the remaining part of the workflow
 			r.ExecReport.Reports = response.Reports
-			r.Iteration++
+			schedFcRequest.CompositionRequest.Iteration++
 
 			break
 		} else {
@@ -394,13 +379,8 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 		}
 	}
 
-	// fmt.Printf("Succesfully deleted %d partial datas and progress for request %s\n", removed, requestId)
-	//r.ExecReport.Result = result.Data
-	fmt.Println("\nEXEC FINAL OUTPUT: ", pd.Data, r.ExecReport.Reports)
 	r.ExecReport.Result = pd.Data
 
-	//progress.NextGroup = -1
-	//r.ExecReport.Progress = progress
 	return r.ExecReport, nil
 }
 
@@ -409,70 +389,34 @@ func (fc *FunctionComposition) InvokeFunctionCompositionOffload(r *CompositionRe
 
 	var err error
 	requestId := ReqId(r.ReqId)
-	fmt.Println("\nOFFLOADED FC ID: ", requestId)
-	// initialize struct progress from dag
-	//progress := InitProgressRecursive(requestId, &fc.Workflow)
-
-	progress, found := RetrieveProgress(requestId, cache.Persist)
+	// retrieve struct progress from dag
+	progress, found := RetrieveProgressFromEtcd(requestId)
 	if !found {
 		return CompositionExecutionReport{Result: nil, Progress: progress}, fmt.Errorf("progress not found")
 	}
 
-	fmt.Println("\nPROGRESS RETRIEVED: ", progress.ReqId)
-	// initialize partial data with input, directly from the Start.Next node
-	//pd := NewPartialData(requestId, fc.Workflow.Start.Next, "nil", input)
+	// retriving partial data
 	nextNodes, err := progress.NextNodes()
 	if err != nil {
 		return CompositionExecutionReport{Result: nil, Progress: progress}, fmt.Errorf("failed to get next nodes from progress: %v", err)
 	}
 
-	pd, err := RetrieveSinglePartialData(requestId, nextNodes[0], cache.Persist)
+	pd, err := RetrieveSinglePartialDataFromEtcd(requestId, nextNodes[0])
 	if err != nil {
 		return CompositionExecutionReport{Result: nil, Progress: progress}, fmt.Errorf("failed to get partial data: %v", err)
 	}
 
-	fmt.Println("\nPARTIAL DATA RETRIEVED: ", pd.Data)
-
 	shouldContinue := true
 	for shouldContinue {
 		// executing dag
-		fmt.Println("SHOULDCONT CYCLE: ", pd.Data)
 		pd, progress, shouldContinue, err = fc.Workflow.Execute(r, pd, progress)
 		if err != nil {
 			progress.Print()
 			return CompositionExecutionReport{Result: nil, Progress: progress}, fmt.Errorf("failed dag execution: %v", err)
 		}
-		fmt.Println("\nPD OUTPUT: ", pd.Data)
 	}
 
-	if !shouldContinue {
-		// saving partialData and progress on etcd - implementing workflow offloading policies
-		err := savePartialDataToEtcd(pd)
-		if err != nil {
-			return CompositionExecutionReport{}, err
-		}
-		err = saveProgressToEtcd(progress)
-		if err != nil {
-			return CompositionExecutionReport{}, err
-		}
-	}
-
-	/*
-		// deleting progresses and partial datas from cache and etcd
-		err = DeleteProgress(requestId, cache.Persist)
-		if err != nil {
-			return CompositionExecutionReport{}, err
-		}
-		_, errDel := DeleteAllPartialData(requestId, cache.Persist)
-		if errDel != nil {
-			return CompositionExecutionReport{}, errDel
-		}*/
-	// fmt.Printf("Succesfully deleted %d partial datas and progress for request %s\n", removed, requestId)
-	//r.ExecReport.Result = result.Data
 	r.ExecReport.Result = pd.Data
-
-	//progress.NextGroup = -1
-	//r.ExecReport.Progress = progress
 	return r.ExecReport, nil
 }
 
@@ -630,14 +574,13 @@ func (cer CompositionExecutionReport) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(tempMap["Reports"], &tempReportsMap); err != nil {
 		return err
 	}
-	cer.Reports = hashmap.New[ExecutionReportId, *function.ExecutionReport]()
 	for id, execReport := range tempReportsMap {
 		var execReportVar function.ExecutionReport
 		err := json.Unmarshal(execReport, &execReportVar)
 		if err != nil {
 			return err
 		}
-		cer.Reports.Set(ExecutionReportId(id), &execReportVar)
+		cer.Reports[ExecutionReportId(id)] = &execReportVar
 	}
 	return nil
 }
@@ -646,9 +589,9 @@ func (cer *CompositionExecutionReport) String() string {
 	str := "["
 	str += fmt.Sprintf("\n\tResponseTime: %f,", cer.ResponseTime)
 	str += "\n\tReports: ["
-	if cer.Reports.Len() > 0 {
+	if len(cer.Reports) > 0 {
 		j := 0
-		cer.Reports.Range(func(id ExecutionReportId, report *function.ExecutionReport) bool {
+		for id, report := range cer.Reports {
 			schedAction := "''"
 			if report.SchedAction != "" {
 				schedAction = report.SchedAction
@@ -659,15 +602,14 @@ func (cer *CompositionExecutionReport) String() string {
 			}
 
 			str += fmt.Sprintf("\n\t\t%s: {ResponseTime: %f, IsWarmStart: %v, InitTime: %f, OffloadLatency: %f, Duration: %f, SchedAction: %v, Output: %s, Result: %s}", id, report.ResponseTime, report.IsWarmStart, report.InitTime, report.OffloadLatency, report.Duration, schedAction, output, report.Result)
-			if j < cer.Reports.Len()-1 {
+			if j < len(cer.Reports)-1 {
 				str += ","
 			}
-			if j == cer.Reports.Len()-1 {
+			if j == len(cer.Reports)-1 {
 				str += "\n\t]"
 			}
 			j++
-			return true
-		})
+		}
 	}
 
 	str += "\n\tResult: {"
@@ -697,8 +639,10 @@ func (cer *CompositionExecutionReport) Equals(other types.Comparable) bool {
 	}
 
 	allEquals := true
-	cer.Reports.Range(func(id ExecutionReportId, report *function.ExecutionReport) bool {
-		report2, isPresent := cer2.Reports.Get(id)
+	//cer.Reports.Range(func(id ExecutionReportId, report *function.ExecutionReport) bool {
+	for id, report := range cer.Reports {
+		//report2, isPresent := cer2.Reports.Get(id)
+		report2, isPresent := cer2.Reports[id]
 		if !isPresent {
 			fmt.Printf("element %s is not present in the other report", id)
 			allEquals = false
@@ -749,8 +693,8 @@ func (cer *CompositionExecutionReport) Equals(other types.Comparable) bool {
 			allEquals = false
 			return false
 		}
-		return true
-	})
+		//return true
+	}
 
 	if cer.ResponseTime != cer2.ResponseTime {
 		fmt.Printf("Composition ResponseTime: %f is different from %f", cer.ResponseTime, cer2.ResponseTime)

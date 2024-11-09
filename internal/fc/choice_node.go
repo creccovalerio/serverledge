@@ -98,8 +98,8 @@ func (c *ChoiceNode) Exec(compRequest *CompositionRequest, params ...map[string]
 		SchedAction:    "",
 	}
 
-	compRequest.ExecReport.Reports.Set(CreateExecutionReportId(c), execReport)
-	//compRequest.ExecReport.Reports[CreateExecutionReportId(c)] = execReport
+	//compRequest.ExecReport.Reports.Set(CreateExecutionReportId(c), execReport)
+	compRequest.ExecReport.Reports[CreateExecutionReportId(c)] = execReport
 	return output, err
 }
 

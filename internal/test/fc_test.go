@@ -7,7 +7,6 @@ import (
 	"log"
 	"testing"
 
-	"github.com/cornelk/hashmap"
 	"github.com/grussorusso/serverledge/internal/fc"
 	"github.com/grussorusso/serverledge/internal/function"
 	"github.com/grussorusso/serverledge/internal/node"
@@ -42,12 +41,12 @@ func TestUnmarshalFunctionCompositionResult(t *testing.T) {
 	resultMap := make(map[string]interface{})
 	resultMap["result"] = 4.
 
-	reportsMap := hashmap.New[fc.ExecutionReportId, *function.ExecutionReport]()
-	reportsMap.Set("Simple_JyzhDkLuBzUVSmPEUiEWVm", &function.ExecutionReport{ResponseTime: 0.00283594, IsWarmStart: true, InitTime: 0.000029114, OffloadLatency: 0.000000, Duration: 0.002802751, SchedAction: "", Output: "", Result: "3"})
-	reportsMap.Set("Simple_c7A3CSJ9efgnW2uCvgWt3Y", &function.ExecutionReport{ResponseTime: 0.002977264, IsWarmStart: true, InitTime: 0.000020023, OffloadLatency: 0.000000, Duration: 0.002953664, SchedAction: "", Output: "", Result: "4"})
-	reportsMap.Set("End_9TUZZdXNwgroNYp4akDKQ6", &function.ExecutionReport{ResponseTime: 0.000000, IsWarmStart: false, InitTime: 0.000000, OffloadLatency: 0.000000, Duration: 0.000000, SchedAction: "", Output: "", Result: "end"})
-	reportsMap.Set("Start_wxrH86t6zc2T2menLrUgYm", &function.ExecutionReport{ResponseTime: 0.000000, IsWarmStart: false, InitTime: 0.000000, OffloadLatency: 0.000000, Duration: 0.000000, SchedAction: "", Output: "", Result: "start"})
-	reportsMap.Set("Simple_z4Jp4LXWFoPnEFFNhJQ64j", &function.ExecutionReport{ResponseTime: 15.901950313, IsWarmStart: false, InitTime: 12.705640725, OffloadLatency: 0.000000, Duration: 3.196273017, SchedAction: "", Output: "", Result: "2"})
+	reportsMap := make(map[fc.ExecutionReportId]*function.ExecutionReport)
+	reportsMap["Simple_JyzhDkLuBzUVSmPEUiEWVm"] = &function.ExecutionReport{ResponseTime: 0.00283594, IsWarmStart: true, InitTime: 0.000029114, OffloadLatency: 0.000000, Duration: 0.002802751, SchedAction: "", Output: "", Result: "3"}
+	reportsMap["Simple_c7A3CSJ9efgnW2uCvgWt3Y"] = &function.ExecutionReport{ResponseTime: 0.002977264, IsWarmStart: true, InitTime: 0.000020023, OffloadLatency: 0.000000, Duration: 0.002953664, SchedAction: "", Output: "", Result: "4"}
+	reportsMap["End_9TUZZdXNwgroNYp4akDKQ6"] = &function.ExecutionReport{ResponseTime: 0.000000, IsWarmStart: false, InitTime: 0.000000, OffloadLatency: 0.000000, Duration: 0.000000, SchedAction: "", Output: "", Result: "end"}
+	reportsMap["Start_wxrH86t6zc2T2menLrUgYm"] = &function.ExecutionReport{ResponseTime: 0.000000, IsWarmStart: false, InitTime: 0.000000, OffloadLatency: 0.000000, Duration: 0.000000, SchedAction: "", Output: "", Result: "start"}
+	reportsMap["Simple_z4Jp4LXWFoPnEFFNhJQ64j"] = &function.ExecutionReport{ResponseTime: 15.901950313, IsWarmStart: false, InitTime: 12.705640725, OffloadLatency: 0.000000, Duration: 3.196273017, SchedAction: "", Output: "", Result: "2"}
 
 	expected := &fc.CompositionExecutionReport{
 		Result:       resultMap,
@@ -829,8 +828,8 @@ func TestInvokeCompositionWait(t *testing.T) {
 	}
 	u.AssertTrueMsg(t, ok, "failed to find wait node")
 
-	respTime, ok := resultMap.Reports.Get(fc.CreateExecutionReportId(waitNode))
-	//respTime, ok := resultMap.Reports[fc.CreateExecutionReportId(waitNode)]
+	//respTime, ok := resultMap.Reports.Get(fc.CreateExecutionReportId(waitNode))
+	respTime, ok := resultMap.Reports[fc.CreateExecutionReportId(waitNode)]
 	u.AssertTrueMsg(t, ok, "failed to find execution report for wait node")
 	u.AssertTrueMsg(t, respTime.Duration > 2.0, fmt.Sprintf("wait node has waited the wrong amount of time %f, expected at least 2.0 seconds", respTime.Duration))
 }

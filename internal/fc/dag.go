@@ -225,8 +225,8 @@ func (dag *Dag) executeStart(progress *Progress, partialData *PartialData, node 
 	if err != nil {
 		return partialData, progress, false, err
 	}
-	r.ExecReport.Reports.Set(CreateExecutionReportId(node), &function.ExecutionReport{Result: "start"})
-	//r.ExecReport.Reports[CreateExecutionReportId(node)] = &function.ExecutionReport{Result: "start"}
+	//r.ExecReport.Reports.Set(CreateExecutionReportId(node), &function.ExecutionReport{Result: "start"})
+	r.ExecReport.Reports[CreateExecutionReportId(node)] = &function.ExecutionReport{Result: "start"}
 	return partialData, progress, true, nil
 }
 
@@ -564,8 +564,8 @@ func commonExec(dag *Dag, progress *Progress, partialData *PartialData, node Dag
 }
 
 func (dag *Dag) executeEnd(progress *Progress, partialData *PartialData, node *EndNode, r *CompositionRequest) (*PartialData, *Progress, bool, error) {
-	r.ExecReport.Reports.Set(CreateExecutionReportId(node), &function.ExecutionReport{Result: "end"})
-	//r.ExecReport.Reports[CreateExecutionReportId(node)] = &function.ExecutionReport{Result: "end"}
+	//r.ExecReport.Reports.Set(CreateExecutionReportId(node), &function.ExecutionReport{Result: "end"})
+	r.ExecReport.Reports[CreateExecutionReportId(node)] = &function.ExecutionReport{Result: "end"}
 	err := progress.CompleteNode(node.Id)
 	if err != nil {
 		return partialData, progress, false, err
@@ -582,8 +582,6 @@ func (dag *Dag) Execute(r *CompositionRequest, data *PartialData, progress *Prog
 	}
 	shouldContinue := true
 
-	fmt.Println("\nEXECUTE WITH: ", data)
-
 	if len(nextNodes) > 1 {
 		pd, progress, err = dag.executeParallel(progress, data, nextNodes, r)
 		if err != nil {
@@ -597,15 +595,12 @@ func (dag *Dag) Execute(r *CompositionRequest, data *PartialData, progress *Prog
 
 		switch node := n.(type) {
 		case *SimpleNode:
-			fmt.Println("\nEXECUTE SIMPLE: ", data)
 			pd, progress, shouldContinue, err = dag.executeSimple(progress, data, node, r)
 		case *ChoiceNode:
-			fmt.Println("\nEXECUTE CHOICE: ", data)
 			pd, progress, shouldContinue, err = dag.executeChoice(progress, data, node, r)
 		case *FanInNode:
 			pd, progress, shouldContinue, err = dag.executeFanIn(progress, data, node, r)
 		case *StartNode:
-			fmt.Println("\nEXECUTE START: ", data)
 			pd, progress, shouldContinue, err = dag.executeStart(progress, data, node, r)
 		case *FanOutNode:
 			pd, progress, shouldContinue, err = dag.executeFanOut(progress, data, node, r)
@@ -618,7 +613,6 @@ func (dag *Dag) Execute(r *CompositionRequest, data *PartialData, progress *Prog
 		case *SucceedNode:
 			pd, progress, shouldContinue, err = dag.executeSucceedNode(progress, data, node, r) // TODO: use commonExec
 		case *EndNode:
-			fmt.Println("\nEXECUTE END: ", data)
 			pd, progress, shouldContinue, err = dag.executeEnd(progress, data, node, r)
 		}
 		if err != nil {

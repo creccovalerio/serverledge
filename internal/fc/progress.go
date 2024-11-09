@@ -515,6 +515,16 @@ func RetrieveProgress(reqId ReqId, tryFromEtcd bool) (*Progress, bool) {
 	return progress, found
 }
 
+// RetrieveProgress should be used by the next node to execute
+func RetrieveProgressFromEtcd(reqId ReqId) (*Progress, bool) {
+	var err error
+	progress, err := getProgressFromEtcd(reqId)
+	if err != nil {
+		return nil, false
+	}
+	return progress, true
+}
+
 func DeleteProgress(reqId ReqId, alsoFromEtcd bool) error {
 	// Remove the progress from the local cache
 	progressMutexCache.Lock()

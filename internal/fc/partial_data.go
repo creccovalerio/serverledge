@@ -109,8 +109,32 @@ func RetrievePartialData(reqId ReqId, nodeId DagNodeId, alsoFromEtcd bool) ([]*P
 	return partialDatas, err
 }
 
+func RetrievePartialDataFromEtcd(reqId ReqId, nodeId DagNodeId) ([]*PartialData, error) {
+	// Get from cache if exists, otherwise from ETCD
+	partialDatas, err := getPartialDataFromEtcd(reqId, nodeId)
+	if err != nil {
+		return nil, fmt.Errorf("\npartial data not found in cache and in etcd: %v", err)
+	}
+
+	if len(partialDatas) == 0 {
+		return nil, fmt.Errorf("partial data are empty")
+	}
+
+	return partialDatas, err
+}
+
 func RetrieveSinglePartialData(reqId ReqId, nodeId DagNodeId, alsoFromEtcd bool) (*PartialData, error) {
 	pds, err := RetrievePartialData(reqId, nodeId, alsoFromEtcd)
+	if err != nil {
+		return nil, fmt.Errorf("partial data not found: %v", err)
+	} else if len(pds) > 1 {
+		return nil, fmt.Errorf("more than one partial data for a simple node")
+	}
+	return pds[0], nil
+}
+
+func RetrieveSinglePartialDataFromEtcd(reqId ReqId, nodeId DagNodeId) (*PartialData, error) {
+	pds, err := RetrievePartialDataFromEtcd(reqId, nodeId)
 	if err != nil {
 		return nil, fmt.Errorf("partial data not found: %v", err)
 	} else if len(pds) > 1 {
@@ -264,7 +288,6 @@ func getPartialDataFromEtcd(requestId ReqId, nodeId DagNodeId) ([]*PartialData, 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	key := getPartialDataEtcdKey(requestId, nodeId)
-	println("getting key from etcd: ", key)
 	pdEtcdMutex.Lock()
 	getResponse, err := cli.Get(ctx, key)
 	if err != nil || len(getResponse.Kvs) < 1 {

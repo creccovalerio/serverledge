@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cornelk/hashmap"
 	"github.com/grussorusso/serverledge/internal/client"
 	"github.com/grussorusso/serverledge/internal/function"
 	"github.com/grussorusso/serverledge/internal/node"
@@ -18,23 +17,18 @@ import (
 const SCHED_ACTION_OFFLOAD = "O"
 
 // TODO: offload the entire node when is cloud only
-func WorkflowOffload(r *CompositionRequest, serverUrl string, reports *hashmap.Map[ExecutionReportId, *function.ExecutionReport]) (CompositionExecutionReport, error) {
+func WorkflowOffload(r *CompositionRequest, serverUrl string, reports map[ExecutionReportId]*function.ExecutionReport) (CompositionExecutionReport, error) {
 
-	exe_reports := make(map[string]*function.ExecutionReport) // make(map[fc.ExecutionReportId]*function.ExecutionReport)
-
-	reports.Range(func(id ExecutionReportId, report *function.ExecutionReport) bool {
-		fmt.Println("-----> REMOTE REPORT ID: ", string(id), report)
-		exe_reports[string(id)] = report
-		return true
-	})
+	exe_reports := make(map[string]*function.ExecutionReport)
+	for key, report := range reports {
+		exe_reports[string(key)] = report
+	}
 
 	request := client.CompositionInvocationRequest{
-		ReqId:   r.ReqId,
-		Params:  r.Params,
-		Reports: exe_reports,
-		//QoSClass: api.DecodeServiceClass(qosClass),
+		ReqId:           r.ReqId,
+		Params:          r.Params,
+		Reports:         exe_reports,
 		CanDoOffloading: false, // blocking another possible offload of the same request
-		//Async:           r.Async
 	}
 	invocationBody, err := json.Marshal(request)
 	if err != nil {
@@ -42,18 +36,13 @@ func WorkflowOffload(r *CompositionRequest, serverUrl string, reports *hashmap.M
 		return CompositionExecutionReport{}, err
 	}
 
-	fmt.Println("\nSENDING POST: ", serverUrl, r.Fc.Name)
 	resp, err := offloadingClient.Post(serverUrl+"/offload/"+r.Fc.Name, "application/json",
 		bytes.NewBuffer(invocationBody))
 
-	//url := fmt.Sprintf("%s/offload/%s", serverUrl, r.Fc.Name)
-	//resp, err := utils.PostJson(url, invocationBody)
 	if err != nil {
-		fmt.Println("\nSENDING FAIL")
 		log.Print(err)
 		return CompositionExecutionReport{}, err
 	}
-	fmt.Println("\nSENDING Ok:", resp.StatusCode)
 
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusTooManyRequests {
@@ -62,7 +51,6 @@ func WorkflowOffload(r *CompositionRequest, serverUrl string, reports *hashmap.M
 		return CompositionExecutionReport{}, fmt.Errorf("Remote returned: %v", resp.StatusCode)
 	}
 
-	//var response function.Response
 	var responseExecutionReport CompositionExecutionReport
 	var response CompositionResponse
 	defer func(Body io.ReadCloser) {
@@ -78,11 +66,10 @@ func WorkflowOffload(r *CompositionRequest, serverUrl string, reports *hashmap.M
 
 	now := time.Now()
 	response.ResponseTime = now.Sub(r.Arrival).Seconds()
-	fmt.Println("RESULT: ", response.Result, &response.Reports)
 	responseExecutionReport.Result = response.Result
-	responseExecutionReport.Reports = hashmap.New[ExecutionReportId, *function.ExecutionReport]()
-	for key, value := range response.Reports {
-		responseExecutionReport.Reports.Set(ExecutionReportId(key), value)
+	responseExecutionReport.Reports = make(map[ExecutionReportId]*function.ExecutionReport)
+	for key, report := range response.Reports {
+		responseExecutionReport.Reports[ExecutionReportId(key)] = report
 	}
 
 	// TODO: check how this is used in the QoSAware policy

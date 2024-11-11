@@ -13,7 +13,7 @@ func (p *CloudEdgePolicy) OnCompletion(_ *scheduledFcRequest) {
 }
 
 func (p *CloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
-	if r.CanDoFcOffloading && r.Iteration == 3 {
+	if r.CanDoFcOffloading && r.Iteration >= 3 {
 		handleCloudOffload(r)
 	} else {
 		handleExecuteLocal(r)

@@ -17,7 +17,7 @@ import (
 const SCHED_ACTION_OFFLOAD = "O"
 
 // TODO: offload the entire node when is cloud only
-func WorkflowOffload(r *CompositionRequest, serverUrl string, reports map[ExecutionReportId]*function.ExecutionReport) (CompositionExecutionReport, error) {
+func WorkflowOffload(r *CompositionRequest, serverUrl string, reports map[ExecutionReportId]*function.ExecutionReport) (CompositionExecutionReport, bool, error) {
 
 	exe_reports := make(map[string]*function.ExecutionReport)
 	for key, report := range reports {
@@ -33,7 +33,7 @@ func WorkflowOffload(r *CompositionRequest, serverUrl string, reports map[Execut
 	invocationBody, err := json.Marshal(request)
 	if err != nil {
 		log.Print(invocationBody)
-		return CompositionExecutionReport{}, err
+		return CompositionExecutionReport{}, true, err
 	}
 
 	resp, err := offloadingClient.Post(serverUrl+"/offload/"+r.Fc.Name, "application/json",
@@ -41,14 +41,14 @@ func WorkflowOffload(r *CompositionRequest, serverUrl string, reports map[Execut
 
 	if err != nil {
 		log.Print(err)
-		return CompositionExecutionReport{}, err
+		return CompositionExecutionReport{}, true, err
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusTooManyRequests {
-			return CompositionExecutionReport{}, node.OutOfResourcesErr
+			return CompositionExecutionReport{}, true, node.OutOfResourcesErr
 		}
-		return CompositionExecutionReport{}, fmt.Errorf("Remote returned: %v", resp.StatusCode)
+		return CompositionExecutionReport{}, true, fmt.Errorf("Remote returned: %v", resp.StatusCode)
 	}
 
 	var responseExecutionReport CompositionExecutionReport
@@ -61,7 +61,7 @@ func WorkflowOffload(r *CompositionRequest, serverUrl string, reports map[Execut
 	}(resp.Body)
 	body, _ := io.ReadAll(resp.Body)
 	if err = json.Unmarshal(body, &response); err != nil {
-		return CompositionExecutionReport{}, err
+		return CompositionExecutionReport{}, true, err
 	}
 
 	now := time.Now()
@@ -76,5 +76,5 @@ func WorkflowOffload(r *CompositionRequest, serverUrl string, reports map[Execut
 	// It was originially computed as "report.Arrival - sendingTime"
 	//r.ExecReport.OffloadLatency = now.Sub(sendingTime).Seconds() - r.ExecReport.Duration - r.ExecReport.InitTime
 	//r.ExecReport.SchedAction = SCHED_ACTION_OFFLOAD
-	return responseExecutionReport, nil
+	return responseExecutionReport, false, nil
 }

@@ -308,7 +308,8 @@ func handleExecuteLocal(r *scheduledFcRequest) {
 func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecutionReport, error) {
 
 	var err error
-	var isInfoSaved = false
+	var areInfoSaved = false
+	var response CompositionExecutionReport
 	requestId := ReqId(r.ReqId)
 	input := r.Params
 
@@ -349,18 +350,16 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 
 			/* flag to use in order to execute DeleteProgress and DeleteAllPartialData only if
 			 * progress and partial data have been stored in etcd during workflow offloading */
-			isInfoSaved = true
+			areInfoSaved = true
 
 			// preparing workflow offloading request
-			response, err := WorkflowOffload(r, fcSchedDecision.remoteHost, r.ExecReport.Reports)
+			response, shouldContinue, err = WorkflowOffload(r, fcSchedDecision.remoteHost, r.ExecReport.Reports)
 			if err != nil {
 				return CompositionExecutionReport{}, err
 			}
 			pd.Data = response.Result // WorkflowOffload has executed interaly the remaining part of the workflow
 			r.ExecReport.Reports = response.Reports
 			schedFcRequest.CompositionRequest.Iteration++
-
-			break
 		} else {
 			// drop case
 			return CompositionExecutionReport{}, err
@@ -368,7 +367,7 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 	}
 
 	// deleting progresses and partial datas from cache and etcd
-	if isInfoSaved {
+	if areInfoSaved {
 		err = DeleteProgress(requestId, cache.Persist)
 		if err != nil {
 			return CompositionExecutionReport{}, err

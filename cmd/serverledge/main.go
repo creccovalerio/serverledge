@@ -140,7 +140,7 @@ func main() {
 		defer stop()
 		tracesOutfile := config.GetString(config.TRACING_OUTFILE, "")
 		if len(tracesOutfile) < 1 {
-			tracesOutfile = fmt.Sprintf("./tracing/traces-%s.json", time.Now().Format("20060102-150405"))
+			tracesOutfile = fmt.Sprintf("../tracing/traces-%s.json", time.Now().Format("20060102-150405"))
 		}
 		log.Printf("Enabling tracing to %s\n", tracesOutfile)
 

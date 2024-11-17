@@ -1,6 +1,8 @@
 package fc
 
 import (
+	"context"
+	"fmt"
 	"time"
 
 	"github.com/grussorusso/serverledge/internal/function"
@@ -10,7 +12,7 @@ type ReqId string
 
 // CompositionRequest represents a single function composition internal invocation, with params and metrics data
 type CompositionRequest struct {
-	ReqId             string
+	Ctx               context.Context
 	Fc                *FunctionComposition
 	Params            map[string]interface{}
 	Arrival           time.Time
@@ -22,9 +24,9 @@ type CompositionRequest struct {
 	Iteration         int
 }
 
-func NewCompositionRequest(reqId string, composition *FunctionComposition, params map[string]interface{}, canDoOffloading bool, canDoFcOffloading bool, async bool) *CompositionRequest {
+func NewCompositionRequest(ctx context.Context, composition *FunctionComposition, params map[string]interface{}, canDoOffloading bool, canDoFcOffloading bool, async bool) *CompositionRequest {
 	return &CompositionRequest{
-		ReqId:   reqId,
+		Ctx:     ctx,
 		Fc:      composition,
 		Params:  params,
 		Arrival: time.Now(),
@@ -36,6 +38,14 @@ func NewCompositionRequest(reqId string, composition *FunctionComposition, param
 		CanDoFcOffloading: canDoFcOffloading,
 		Async:             async,
 	}
+}
+
+func (r *CompositionRequest) Id() string {
+	return r.Ctx.Value("ReqId").(string)
+}
+
+func (r *CompositionRequest) String() string {
+	return fmt.Sprintf("[%s] Rq-%s", r.Fc.Name, r.Id())
 }
 
 type CompositionResponse struct {

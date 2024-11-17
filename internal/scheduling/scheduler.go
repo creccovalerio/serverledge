@@ -1,6 +1,7 @@
 package scheduling
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -10,6 +11,9 @@ import (
 
 	"github.com/grussorusso/serverledge/internal/metrics"
 	"github.com/grussorusso/serverledge/internal/node"
+	"github.com/grussorusso/serverledge/internal/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/grussorusso/serverledge/internal/config"
 
@@ -19,12 +23,12 @@ import (
 
 var requests chan *scheduledRequest
 
+var parentCtx context.Context
+
 // var compositionRequests chan *scheduledCompositionRequest // watch out for circular import!!!
 var completions chan *completion
 
 var remoteServerUrl string
-var executionLogEnabled bool
-
 var offloadingClient *http.Client
 
 func Run(p Policy) {
@@ -79,19 +83,39 @@ func Run(p Policy) {
 
 }
 
+func SetParentCtx(ctx context.Context) {
+	parentCtx = ctx
+}
+
 // SubmitRequest submits a newly arrived request for scheduling and execution
 func SubmitRequest(r *function.Request) error {
 	schedRequest := scheduledRequest{
 		Request:         r,
 		decisionChannel: make(chan schedDecision, 1)}
 	requests <- &schedRequest // send request
-	// fmt.Printf("Submitting request for executing function %s\n", r.Fun.Name)
+
+	// Tracing
+	if telemetry.DefaultTracer != nil {
+		childCtx, childSpan := telemetry.DefaultTracer.Start(parentCtx, "invocation")
+		r.Ctx = childCtx
+		defer childSpan.End()
+		childSpan.SetAttributes(attribute.String("function", r.Fun.Name))
+	}
+
+	if telemetry.DefaultTracer != nil {
+		trace.SpanFromContext(r.Ctx).AddEvent("Scheduling start")
+	}
+
 	// wait on channel for scheduling action
 	schedDecision, ok := <-schedRequest.decisionChannel
 	if !ok {
 		return fmt.Errorf("could not schedule the request")
 	}
 	//log.Printf("[%s] Scheduling decision: %v", r, schedDecision)
+
+	if telemetry.DefaultTracer != nil {
+		trace.SpanFromContext(r.Ctx).AddEvent("Scheduling complete")
+	}
 
 	var err error
 	if schedDecision.action == DROP {
@@ -122,29 +146,32 @@ func SubmitAsyncRequest(r *function.Request) {
 	// wait on channel for scheduling action
 	schedDecision, ok := <-schedRequest.decisionChannel
 	if !ok {
-		PublishAsyncResponse(r.ReqId, function.Response{Success: false})
+		PublishAsyncResponse(r.Id(), function.Response{Success: false})
 		return
 	}
 
 	var err error
 	if schedDecision.action == DROP {
-		PublishAsyncResponse(r.ReqId, function.Response{Success: false})
+		PublishAsyncResponse(r.Id(), function.Response{Success: false})
 	} else if schedDecision.action == EXEC_REMOTE {
 		//log.Printf("Offloading request\n")
 		err = OffloadAsync(r, schedDecision.remoteHost)
 		if err != nil {
-			PublishAsyncResponse(r.ReqId, function.Response{Success: false})
+			PublishAsyncResponse(r.Id(), function.Response{Success: false})
 		}
 	} else {
 		err = Execute(schedDecision.contID, &schedRequest, r.IsInComposition) // executing async request
 		if err != nil {
-			PublishAsyncResponse(r.ReqId, function.Response{Success: false})
+			PublishAsyncResponse(r.Id(), function.Response{Success: false})
 		}
-		PublishAsyncResponse(r.ReqId, function.Response{Success: true, ExecutionReport: r.ExecReport})
+		PublishAsyncResponse(r.Id(), function.Response{Success: true, ExecutionReport: r.ExecReport})
 	}
 }
 
 func handleColdStart(r *scheduledRequest) (isSuccess bool) {
+	if telemetry.DefaultTracer != nil {
+		trace.SpanFromContext(r.Ctx).AddEvent("Container init start")
+	}
 	newContainer, err := node.NewContainer(r.Fun)
 	if errors.Is(err, node.OutOfResourcesErr) {
 		return false
@@ -152,6 +179,9 @@ func handleColdStart(r *scheduledRequest) (isSuccess bool) {
 		log.Printf("Cold start failed: %v\n", err)
 		return false
 	} else {
+		if telemetry.DefaultTracer != nil {
+			trace.SpanFromContext(r.Ctx).AddEvent("Container init complete")
+		}
 		execLocally(r, newContainer, false)
 		return true
 	}

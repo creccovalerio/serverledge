@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -15,8 +16,11 @@ import (
 	"github.com/grussorusso/serverledge/internal/fc_scheduling"
 	"github.com/grussorusso/serverledge/internal/function"
 	"github.com/grussorusso/serverledge/internal/node"
+	"github.com/grussorusso/serverledge/internal/scheduling"
+	"github.com/grussorusso/serverledge/internal/telemetry"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // ===== Function Composition =====
@@ -211,7 +215,10 @@ func InvokeFunctionComposition(e echo.Context) error {
 	fcReq.CanDoFcOffloading = fcInvocationRequest.CanDoFcOffloading
 	fcReq.Async = fcInvocationRequest.Async
 	fcReq.Iteration = 0
-	fcReq.ReqId = fmt.Sprintf("%v-%s%d", funComp.Name, node.NodeIdentifier[len(node.NodeIdentifier)-5:], fcReq.Arrival.Nanosecond())
+	//fcReq.ReqId = fmt.Sprintf("%v-%s%d", funComp.Name, node.NodeIdentifier[len(node.NodeIdentifier)-5:], fcReq.Arrival.Nanosecond())
+	reqId := fmt.Sprintf("%s-%s%d", funComp.Name, node.NodeIdentifier[len(node.NodeIdentifier)-5:], fcReq.Arrival.Nanosecond())
+	fcReq.Ctx = context.WithValue(context.Background(), "ReqId", reqId)
+
 	// init fields if possibly not overwritten later
 	fcReq.ExecReport.Reports = make(map[fc.ExecutionReportId]*function.ExecutionReport)
 	for nodeId := range funComp.Workflow.Nodes {
@@ -223,9 +230,18 @@ func InvokeFunctionComposition(e echo.Context) error {
 		}
 	}
 
+	// Tracing
+	if telemetry.DefaultTracer != nil {
+		parentCtx, span := telemetry.DefaultTracer.Start(fcReq.Ctx, "fc_invocation")
+		fcReq.Ctx = parentCtx
+		scheduling.SetParentCtx(parentCtx)
+		span.SetAttributes(attribute.String("function_composition", fcReq.Fc.Name))
+		defer span.End()
+	}
+
 	if fcReq.Async {
 		go fc_scheduling.SubmitAsyncCompositionRequest(fcReq)
-		return e.JSON(http.StatusOK, function.AsyncResponse{ReqId: fcReq.ReqId})
+		return e.JSON(http.StatusOK, function.AsyncResponse{ReqId: fcReq.Id()})
 	}
 
 	// sync execution
@@ -269,7 +285,7 @@ func ExecuteOffloadedFunctionComposition(e echo.Context) error {
 	}
 
 	// we use invocation request that is specific to function compositions
-	var fcInvocationRequest client.CompositionInvocationRequest
+	var fcInvocationRequest client.OffloadedCompositionInvocationRequest
 	err := json.NewDecoder(e.Request().Body).Decode(&fcInvocationRequest)
 	if err != nil && err != io.EOF {
 		log.Printf("Could not parse invoke request - error during decoding: %v", err)
@@ -283,13 +299,25 @@ func ExecuteOffloadedFunctionComposition(e echo.Context) error {
 	fcReq.Params = fcInvocationRequest.Params
 	fcReq.Arrival = time.Now()
 	fcReq.CanDoOffloading = fcInvocationRequest.CanDoOffloading
-	fcReq.ReqId = fcInvocationRequest.ReqId
+
+	reqId := fcInvocationRequest.ReqId
+	fcReq.Ctx = context.WithValue(context.Background(), "ReqId", reqId)
 
 	// instead of saving only one RequestQoS, we save a map with an entry for each function in the composition
 	//fcReq.RequestQoSMap = fcInvocationRequest.RequestQoSMap
 	fcReq.ExecReport.Reports = make(map[fc.ExecutionReportId]*function.ExecutionReport)
 	for key, report := range fcInvocationRequest.Reports {
 		fcReq.ExecReport.Reports[fc.ExecutionReportId(key)] = report
+	}
+
+	// set the parentCtx of the nested spans executed remotly
+	// Tracing
+	if telemetry.DefaultTracer != nil {
+		parentCtx, span := telemetry.DefaultTracer.Start(fcReq.Ctx, "fc_invocation")
+		fcReq.Ctx = parentCtx
+		scheduling.SetParentCtx(parentCtx)
+		span.SetAttributes(attribute.String("function_composition", fcReq.Fc.Name))
+		defer span.End()
 	}
 
 	err = fc_scheduling.SubmitOffloadCompositionRequest(fcReq)

@@ -71,3 +71,9 @@ const SCHEDULING_FC_POLICY = "fc_scheduler.policy"
 
 // Capacity of the queue (possibly) used by the scheduler
 const SCHEDULER_QUEUE_CAPACITY = "scheduler.queue.capacity"
+
+// Enables tracing
+const TRACING_ENABLED = "tracing.enabled"
+
+// Custom output file for traces
+const TRACING_OUTFILE = "tracing.outfile"

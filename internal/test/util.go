@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -297,9 +298,10 @@ func pollCompositionTest(t *testing.T, requestId string, host string, port int) 
 }
 
 func newCompositionRequestTest() *fc.CompositionRequest {
-
+	reqId := "test"
+	ctx := context.WithValue(context.Background(), "ReqId", reqId)
 	return &fc.CompositionRequest{
-		ReqId: "test",
+		Ctx: ctx,
 		ExecReport: fc.CompositionExecutionReport{
 			Reports: make(map[fc.ExecutionReportId]*function.ExecutionReport),
 		},

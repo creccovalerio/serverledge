@@ -37,7 +37,7 @@ func SubmitOffloadCompositionRequest(fcReq *fc.CompositionRequest) error {
 func SubmitAsyncCompositionRequest(fcReq *fc.CompositionRequest) {
 	executionReport, errInvoke := fcReq.Fc.Invoke(fcReq)
 	if errInvoke != nil {
-		PublishAsyncCompositionResponse(fcReq.ReqId, fc.CompositionResponse{Success: false})
+		PublishAsyncCompositionResponse(fcReq.Id(), fc.CompositionResponse{Success: false})
 		return
 	}
 	reports := make(map[string]*function.ExecutionReport)
@@ -49,7 +49,7 @@ func SubmitAsyncCompositionRequest(fcReq *fc.CompositionRequest) {
 	for key, report := range fcReq.ExecReport.Reports {
 		reports[string(key)] = report
 	}
-	PublishAsyncCompositionResponse(fcReq.ReqId, fc.CompositionResponse{
+	PublishAsyncCompositionResponse(fcReq.Id(), fc.CompositionResponse{
 		Success:      true,
 		Result:       fcReq.ExecReport.Result,
 		Reports:      reports,

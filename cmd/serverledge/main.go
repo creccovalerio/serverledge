@@ -18,6 +18,7 @@ import (
 	"github.com/grussorusso/serverledge/internal/node"
 	"github.com/grussorusso/serverledge/internal/registration"
 	"github.com/grussorusso/serverledge/internal/scheduling"
+	"github.com/grussorusso/serverledge/internal/telemetry"
 	"github.com/grussorusso/serverledge/utils"
 
 	"github.com/labstack/echo/v4"
@@ -133,6 +134,26 @@ func main() {
 	node.NodeIdentifier = myKey
 
 	go metrics.Init()
+
+	if config.GetBool(config.TRACING_ENABLED, false) {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		tracesOutfile := config.GetString(config.TRACING_OUTFILE, "")
+		if len(tracesOutfile) < 1 {
+			tracesOutfile = fmt.Sprintf("./tracing/traces-%s.json", time.Now().Format("20060102-150405"))
+		}
+		log.Printf("Enabling tracing to %s\n", tracesOutfile)
+
+		otelShutdown, err := telemetry.SetupOTelSDK(ctx, tracesOutfile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		// Handle shutdown properly so nothing leaks.
+		defer func() {
+			err = errors.Join(err, otelShutdown(context.Background()))
+		}()
+
+	}
 
 	e := echo.New()
 

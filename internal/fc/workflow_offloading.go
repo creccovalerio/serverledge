@@ -12,6 +12,8 @@ import (
 	"github.com/grussorusso/serverledge/internal/client"
 	"github.com/grussorusso/serverledge/internal/function"
 	"github.com/grussorusso/serverledge/internal/node"
+	"github.com/grussorusso/serverledge/internal/telemetry"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const SCHED_ACTION_OFFLOAD = "O"
@@ -24,16 +26,20 @@ func WorkflowOffload(r *CompositionRequest, serverUrl string, reports map[Execut
 		exe_reports[string(key)] = report
 	}
 
-	request := client.CompositionInvocationRequest{
-		ReqId:           r.ReqId,
+	request := client.OffloadedCompositionInvocationRequest{
+		ReqId:           r.Id(),
 		Params:          r.Params,
 		Reports:         exe_reports,
-		CanDoOffloading: false, // blocking another possible offload of the same request
+		CanDoOffloading: false, // blocking another possible offload of the same request on the cloud node
 	}
 	invocationBody, err := json.Marshal(request)
 	if err != nil {
 		log.Print(invocationBody)
 		return CompositionExecutionReport{}, true, err
+	}
+
+	if telemetry.DefaultTracer != nil {
+		trace.SpanFromContext(r.Ctx).AddEvent("Offload Post start")
 	}
 
 	resp, err := offloadingClient.Post(serverUrl+"/offload/"+r.Fc.Name, "application/json",
@@ -42,6 +48,10 @@ func WorkflowOffload(r *CompositionRequest, serverUrl string, reports map[Execut
 	if err != nil {
 		log.Print(err)
 		return CompositionExecutionReport{}, true, err
+	}
+
+	if telemetry.DefaultTracer != nil {
+		trace.SpanFromContext(r.Ctx).AddEvent("Offload Post complete")
 	}
 
 	if resp.StatusCode != http.StatusOK {

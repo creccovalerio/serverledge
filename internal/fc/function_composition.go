@@ -13,9 +13,11 @@ import (
 	"github.com/grussorusso/serverledge/internal/config"
 	"github.com/grussorusso/serverledge/internal/function"
 	"github.com/grussorusso/serverledge/internal/node"
+	"github.com/grussorusso/serverledge/internal/telemetry"
 	"github.com/grussorusso/serverledge/internal/types"
 	"github.com/grussorusso/serverledge/utils"
 	"github.com/labstack/gommon/log"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/exp/slices"
 )
 
@@ -310,7 +312,7 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 	var err error
 	var areInfoSaved = false
 	var response CompositionExecutionReport
-	requestId := ReqId(r.ReqId)
+	requestId := ReqId(r.Id())
 	input := r.Params
 
 	// initialize struct progress from dag
@@ -327,10 +329,20 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 	shouldContinue := true
 	for shouldContinue {
 		requests <- &schedFcRequest // send request
+
+		if telemetry.DefaultTracer != nil {
+			trace.SpanFromContext(r.Ctx).AddEvent("Fc Scheduling start")
+		}
+
 		fcSchedDecision, ok := <-schedFcRequest.fcDecisionChannel
 		if !ok {
 			return CompositionExecutionReport{Result: nil, Progress: progress}, fmt.Errorf("failed scheduling fc request execution: %v", err)
 		}
+
+		if telemetry.DefaultTracer != nil {
+			trace.SpanFromContext(r.Ctx).AddEvent("Fc Scheduling complete")
+		}
+
 		if fcSchedDecision.action == EXEC_LOCAL {
 			pd, progress, shouldContinue, err = fc.Workflow.Execute(r, pd, progress)
 			if err != nil {
@@ -339,6 +351,11 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 			}
 			schedFcRequest.CompositionRequest.Iteration++
 		} else if fcSchedDecision.action == EXEC_REMOTE {
+
+			if telemetry.DefaultTracer != nil {
+				trace.SpanFromContext(r.Ctx).AddEvent("Save pd & progress on etcd start")
+			}
+
 			err := savePartialDataToEtcd(pd)
 			if err != nil {
 				return CompositionExecutionReport{}, err
@@ -346,6 +363,10 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 			err = saveProgressToEtcd(progress)
 			if err != nil {
 				return CompositionExecutionReport{}, err
+			}
+
+			if telemetry.DefaultTracer != nil {
+				trace.SpanFromContext(r.Ctx).AddEvent("Save pd & progress on etcd complete")
 			}
 
 			/* flag to use in order to execute DeleteProgress and DeleteAllPartialData only if
@@ -387,8 +408,11 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 func (fc *FunctionComposition) InvokeFunctionCompositionOffload(r *CompositionRequest) (CompositionExecutionReport, error) {
 
 	var err error
-	requestId := ReqId(r.ReqId)
+	requestId := ReqId(r.Id())
 	// retrieve struct progress from dag
+	if telemetry.DefaultTracer != nil {
+		trace.SpanFromContext(r.Ctx).AddEvent("Retrieve pd & progress from etcd start")
+	}
 	progress, found := RetrieveProgressFromEtcd(requestId)
 	if !found {
 		return CompositionExecutionReport{Result: nil, Progress: progress}, fmt.Errorf("progress not found")
@@ -403,6 +427,10 @@ func (fc *FunctionComposition) InvokeFunctionCompositionOffload(r *CompositionRe
 	pd, err := RetrieveSinglePartialDataFromEtcd(requestId, nextNodes[0])
 	if err != nil {
 		return CompositionExecutionReport{Result: nil, Progress: progress}, fmt.Errorf("failed to get partial data: %v", err)
+	}
+
+	if telemetry.DefaultTracer != nil {
+		trace.SpanFromContext(r.Ctx).AddEvent("Retrieve pd & progress from etcd complete")
 	}
 
 	shouldContinue := true

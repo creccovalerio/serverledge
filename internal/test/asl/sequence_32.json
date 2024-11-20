@@ -1,0 +1,167 @@
+{
+    "Comment": "An example of the Amazon States Language using a choice state.",
+    "StartAt": "State1",
+    "States": {
+      "State1": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State2"
+      },
+      "State2": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State3"
+      },
+      "State3": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State4"
+      },
+      "State4": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State5"
+      },
+      "State5": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State6"
+      },
+      "State6": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State7"
+      },
+      "State7": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State8"
+      },
+      "State8": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State9"
+      },
+      "State9": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State10"
+      },
+      "State10": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State11"
+      },
+      "State11": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State12"
+      },
+      "State12": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State13"
+      },
+      "State13": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State14"
+      },
+      "State14": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State15"
+      },
+      "State15": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State16"
+      },
+      "State16": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State17"
+      },
+      "State17": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State18"
+      },
+      "State18": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State19"
+      },
+      "State19": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State20"
+      },
+      "State20": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State21"
+      },
+      "State21": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State22"
+      },
+      "State22": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State23"
+      },
+      "State23": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State24"
+      },
+      "State24": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State25"
+      },
+      "State25": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State26"
+      },
+      "State26": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State27"
+      },
+      "State27": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State28"
+      },
+      "State28": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State29"
+      },
+      "State29": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State30"
+      },
+      "State30": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State31"
+      },
+      "State31": {
+        "Type": "Task",
+        "Resource": "noop",
+        "Next": "State32"
+      },
+      "State32": {
+        "Type": "Task",
+        "Resource": "noop",
+        "End": true
+      }
+    }
+    
+  }

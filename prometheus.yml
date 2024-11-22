@@ -11,6 +11,8 @@ scrape_configs:
     # scheme defaults to 'http'.
 
     static_configs:
-      - targets: ["172.17.0.1:2112"]
+      - targets: ["192.168.1.9:2112"]
+      #- targets: ["172.17.0.1:2112"]
 
+    metrics_path: "/metrics"
 

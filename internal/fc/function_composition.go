@@ -55,6 +55,14 @@ const (
 	BEST_EFFORT_EXECUTION        = 3
 )
 
+type ReturnedOutputData struct {
+	AvgTotalColdStartsTime map[string]float64
+	AvgFcRespTime          map[string]float64
+	AvgFunDurationTime     map[string]float64
+	AvgOutputFunSize       map[string]float64
+	Timestamp              time.Time
+}
+
 type ExecutionReportId string
 
 func CreateExecutionReportId(dagNode DagNode) ExecutionReportId {
@@ -232,10 +240,12 @@ func (fc *FunctionComposition) SaveToEtcd() error {
 var requests chan *scheduledFcRequest
 var completions chan *completion
 var remoteServerUrl string
+var dataMap map[time.Time]ReturnedOutputData
 
 func Run(p FcPolicy) {
 	requests = make(chan *scheduledFcRequest, 500)
 	completions = make(chan *completion, 500)
+	dataMap = make(map[time.Time]ReturnedOutputData)
 
 	// initialize Resources resources
 	availableCores := runtime.NumCPU()
@@ -266,14 +276,6 @@ func Run(p FcPolicy) {
 			go p.OnArrival(r)
 		case c = <-completions:
 			p.OnCompletion(c.scheduledFcRequest)
-
-			//if metrics.Enabled {
-			//metrics.AddCompletedFcInvocation(c.Fc.Name)
-			//metrics.AddCompletedInvocation(c.Fc.Name)
-			//if c.ExecReport.SchedAction != SCHED_ACTION_OFFLOAD {
-			//	metrics.AddFunctionDurationValue(c.Fun.Name, c.ExecReport.Duration)
-			//}
-			//}
 		}
 	}
 

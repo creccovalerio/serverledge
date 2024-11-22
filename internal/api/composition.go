@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/grussorusso/serverledge/internal/client"
@@ -20,7 +21,10 @@ import (
 	"github.com/grussorusso/serverledge/internal/telemetry"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
+
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 // ===== Function Composition =====
@@ -239,6 +243,20 @@ func InvokeFunctionComposition(e echo.Context) error {
 		defer span.End()
 	}
 
+	if telemetry.MetricsEnabled {
+		meter := otel.Meter(os.Getenv("OTEL_SERVICE_NAME"))
+		m, err := telemetry.NewCounterMetric(meter)
+		if err != nil {
+			panic(err)
+		}
+
+		m.RequestCounter.Add(
+			context.WithValue(context.Background(), "ReqId", reqId),
+			1,
+			metric.WithAttributes(attribute.String("fcInvocationCounter", fcReq.Fc.Name)),
+		)
+	}
+
 	if fcReq.Async {
 		go fc_scheduling.SubmitAsyncCompositionRequest(fcReq)
 		return e.JSON(http.StatusOK, function.AsyncResponse{ReqId: fcReq.Id()})
@@ -246,6 +264,18 @@ func InvokeFunctionComposition(e echo.Context) error {
 
 	// sync execution
 	err = fc_scheduling.SubmitCompositionRequest(fcReq)
+
+	if telemetry.MetricsEnabled {
+		meter := otel.Meter(os.Getenv("OTEL_SERVICE_NAME"))
+		m, err := telemetry.NewHistogramMetric(meter, "FunctionComposition.respTime", "Response time of a function composition")
+		if err != nil {
+			panic(err)
+		}
+		m.Record(
+			fcReq.Ctx,
+			fcReq.ExecReport.ResponseTime,
+			metric.WithAttributes(attribute.String("functionCompositionInvocationRespTime", fcReq.Fc.Name)))
+	}
 
 	if errors.Is(err, node.OutOfResourcesErr) {
 		return e.String(http.StatusTooManyRequests, "")

@@ -6,13 +6,15 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"runtime"
 	"time"
 
-	"github.com/grussorusso/serverledge/internal/metrics"
 	"github.com/grussorusso/serverledge/internal/node"
 	"github.com/grussorusso/serverledge/internal/telemetry"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/grussorusso/serverledge/internal/config"
@@ -72,11 +74,26 @@ func Run(p Policy) {
 			node.ReleaseContainer(c.contID, c.Fun)
 			p.OnCompletion(c.scheduledRequest)
 
-			if metrics.Enabled {
-				metrics.AddCompletedInvocation(c.Fun.Name)
-				if c.ExecReport.SchedAction != SCHED_ACTION_OFFLOAD {
-					metrics.AddFunctionDurationValue(c.Fun.Name, c.ExecReport.Duration)
+			if telemetry.MetricsEnabled {
+				meter := otel.Meter(os.Getenv("OTEL_SERVICE_NAME"))
+				m, err := telemetry.NewHistogramMetric(meter, "Function.duration", "Duration of a function")
+				if err != nil {
+					panic(err)
 				}
+				m.Record(
+					c.scheduledRequest.Ctx,
+					c.ExecReport.Duration,
+					metric.WithAttributes(attribute.String("functInvocationCounter", c.Fun.Name)))
+
+				mtr, err := telemetry.NewHistogramMetric(meter, "FunctionOutput.size", "Size of the function output")
+				if err != nil {
+					panic(err)
+				}
+				mtr.Record(
+					c.scheduledRequest.Ctx,
+					float64(len([]byte(c.ExecReport.Result))),
+					metric.WithAttributes(attribute.String("functionSizeHistogram", c.Fun.Name)))
+
 			}
 		}
 	}
@@ -169,9 +186,23 @@ func SubmitAsyncRequest(r *function.Request) {
 }
 
 func handleColdStart(r *scheduledRequest) (isSuccess bool) {
+
+	var m metric.Float64Histogram
+	var err error
+	var start time.Time
 	if telemetry.DefaultTracer != nil {
 		trace.SpanFromContext(r.Ctx).AddEvent("Container init start")
 	}
+
+	if telemetry.MetricsEnabled {
+		meter := otel.Meter(os.Getenv("OTEL_SERVICE_NAME"))
+		m, err = telemetry.NewHistogramMetric(meter, "ColdStart.duration", "Duration of a cold start")
+		if err != nil {
+			panic(err)
+		}
+		start = time.Now()
+	}
+
 	newContainer, err := node.NewContainer(r.Fun)
 	if errors.Is(err, node.OutOfResourcesErr) {
 		return false
@@ -181,6 +212,14 @@ func handleColdStart(r *scheduledRequest) (isSuccess bool) {
 	} else {
 		if telemetry.DefaultTracer != nil {
 			trace.SpanFromContext(r.Ctx).AddEvent("Container init complete")
+		}
+
+		if telemetry.MetricsEnabled {
+			duration := time.Since(start)
+			m.Record(
+				r.Ctx,
+				duration.Seconds(),
+				metric.WithAttributes(attribute.String("functColdStartHistogram", r.Fun.Name)))
 		}
 		execLocally(r, newContainer, false)
 		return true

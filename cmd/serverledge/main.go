@@ -133,8 +133,6 @@ func main() {
 	}
 	node.NodeIdentifier = myKey
 
-	go metrics.Init()
-
 	if config.GetBool(config.TRACING_ENABLED, false) {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer stop()
@@ -153,6 +151,24 @@ func main() {
 			err = errors.Join(err, otelShutdown(context.Background()))
 		}()
 
+	}
+
+	if config.GetBool(config.METRICS_ENABLED, false) {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		log.Printf("Enabling metrics\n")
+		otelShutdown, err := telemetry.SetupOTelMetricsSDK(ctx)
+		if err != nil {
+			log.Fatal(err)
+		}
+		// Handle shutdown properly so nothing leaks.
+		defer func() {
+			err = errors.Join(err, otelShutdown(context.Background()))
+		}()
+
+		// invoke metrics.ServerMetricsInit() to use a mux in order to debug metrics on the stdout
+		go metrics.ServerPromMetricsInit()
+		go metrics.PeriodicalMetricsRetrieveFromPrometheus()
 	}
 
 	e := echo.New()

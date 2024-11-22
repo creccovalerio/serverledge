@@ -22,6 +22,10 @@ import (
 )
 
 var offloadingClient *http.Client
+var requests chan *scheduledFcRequest
+var completions chan *completion
+var remoteServerUrl string
+var dataMap map[time.Time]ReturnedOutputData
 
 // FunctionComposition is a serverless Function Composition
 type FunctionComposition struct {
@@ -236,11 +240,6 @@ func (fc *FunctionComposition) SaveToEtcd() error {
 
 	return nil
 }
-
-var requests chan *scheduledFcRequest
-var completions chan *completion
-var remoteServerUrl string
-var dataMap map[time.Time]ReturnedOutputData
 
 func Run(p FcPolicy) {
 	requests = make(chan *scheduledFcRequest, 500)

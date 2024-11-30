@@ -166,9 +166,7 @@ func main() {
 			err = errors.Join(err, otelShutdown(context.Background()))
 		}()
 
-		// invoke metrics.ServerMetricsInit() to use a mux in order to debug metrics on the stdout
 		go metrics.ServerPromMetricsInit()
-		go metrics.PeriodicalMetricsRetrieveFromPrometheus()
 	}
 
 	e := echo.New()

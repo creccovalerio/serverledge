@@ -140,14 +140,31 @@ func SubmitRequest(r *function.Request) error {
 		return node.OutOfResourcesErr
 	} else if schedDecision.action == EXEC_REMOTE {
 		//log.Printf("Offloading request\n")
+		if telemetry.DefaultTracer != nil {
+			trace.SpanFromContext(r.Ctx).AddEvent("Offload function start")
+		}
+
 		err = Offload(r, schedDecision.remoteHost)
 		if err != nil {
 			return err
 		}
+
+		if telemetry.DefaultTracer != nil {
+			trace.SpanFromContext(r.Ctx).AddEvent("Offload function complete")
+		}
+
 	} else {
+		if telemetry.DefaultTracer != nil {
+			trace.SpanFromContext(r.Ctx).AddEvent("Execute function start")
+		}
+
 		err = Execute(schedDecision.contID, &schedRequest, r.IsInComposition) // executing request
 		if err != nil {
 			return err
+		}
+
+		if telemetry.DefaultTracer != nil {
+			trace.SpanFromContext(r.Ctx).AddEvent("Execute function complete")
 		}
 	}
 	return nil

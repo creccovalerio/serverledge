@@ -18,7 +18,6 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
-var metricsInfos chan fc.ReturnedOutputData
 var dataToSend fc.ReturnedOutputData
 
 // Struct to represent query with its id
@@ -143,7 +142,6 @@ func PeriodicalMetricsRetrieveFromPrometheus() {
 
 			wg.Wait()
 			fmt.Println("All queries completed")
-			dataToSend.Timestamp = time.Now()
 			fc.SubmitInfos(dataToSend)
 		}
 	}

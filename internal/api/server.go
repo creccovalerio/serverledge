@@ -13,6 +13,7 @@ import (
 	"github.com/grussorusso/serverledge/internal/cache"
 	"github.com/grussorusso/serverledge/internal/config"
 	"github.com/grussorusso/serverledge/internal/fc"
+	"github.com/grussorusso/serverledge/internal/metrics"
 	"github.com/grussorusso/serverledge/internal/node"
 	"github.com/grussorusso/serverledge/internal/registration"
 	"github.com/grussorusso/serverledge/internal/scheduling"
@@ -117,6 +118,10 @@ func CreateSchedulingPolicy() scheduling.Policy {
 func CreateFcSchedulingPolicy() fc.FcPolicy {
 	policyConf := config.GetString(config.SCHEDULING_FC_POLICY, "default")
 	log.Printf("\nConfigured fc policy: %s", policyConf)
+	if config.GetBool(config.METRICS_ENABLED, false) {
+		// start periodic metrics retrieve
+		go metrics.PeriodicalMetricsRetrieveFromPrometheus()
+	}
 	if policyConf == "edgecloud" {
 		return &fc.CloudEdgePolicy{}
 	} else { // default, localonly

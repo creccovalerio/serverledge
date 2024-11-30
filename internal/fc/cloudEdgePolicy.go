@@ -2,6 +2,7 @@ package fc
 
 import (
 	"fmt"
+	"time"
 )
 
 // CloudEdgePolicy supports only Edge-Cloud Offloading. Executes locally first,
@@ -10,8 +11,8 @@ import (
 type CloudEdgePolicy struct{}
 
 func SubmitInfos(data ReturnedOutputData) {
-	//dataMetrics = data // actual retrieved data
-	dataMap[data.Timestamp] = data //adding actual data to historical data
+	timestamp := time.Now()
+	dataMap[timestamp] = data //adding actual data to historical data
 	for key := range dataMap {
 		fmt.Println("------------------------------------------")
 		fmt.Println("Timestamp Key: ", key)

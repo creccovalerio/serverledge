@@ -64,7 +64,6 @@ type ReturnedOutputData struct {
 	AvgFcRespTime          map[string]float64
 	AvgFunDurationTime     map[string]float64
 	AvgOutputFunSize       map[string]float64
-	Timestamp              time.Time
 }
 
 type ExecutionReportId string
@@ -390,6 +389,9 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 
 	// deleting progresses and partial datas from cache and etcd
 	if areInfoSaved {
+		if telemetry.DefaultTracer != nil {
+			trace.SpanFromContext(r.Ctx).AddEvent("Delete pd & progress from etcd start")
+		}
 		err = DeleteProgress(requestId, cache.Persist)
 		if err != nil {
 			return CompositionExecutionReport{}, err
@@ -397,6 +399,9 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 		_, errDel := DeleteAllPartialData(requestId, cache.Persist)
 		if errDel != nil {
 			return CompositionExecutionReport{}, errDel
+		}
+		if telemetry.DefaultTracer != nil {
+			trace.SpanFromContext(r.Ctx).AddEvent("Delete pd & progress from etcd complete")
 		}
 	}
 

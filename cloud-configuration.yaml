@@ -7,7 +7,7 @@ scheduler.policy: default
 fc_scheduler.policy: edgecloud
 container.pool.memory: 6072
 
-tracing.enabled: false
+tracing.enabled: true
 #tracing.outfile: ./tracing/tracing.json
 
 metrics.enabled: false

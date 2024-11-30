@@ -61,6 +61,10 @@ func WorkflowOffload(r *CompositionRequest, serverUrl string, reports map[Execut
 		return CompositionExecutionReport{}, true, fmt.Errorf("Remote returned: %v", resp.StatusCode)
 	}
 
+	if telemetry.DefaultTracer != nil {
+		trace.SpanFromContext(r.Ctx).AddEvent("Process Offload Post response start")
+	}
+
 	var responseExecutionReport CompositionExecutionReport
 	var response CompositionResponse
 	defer func(Body io.ReadCloser) {
@@ -80,6 +84,10 @@ func WorkflowOffload(r *CompositionRequest, serverUrl string, reports map[Execut
 	responseExecutionReport.Reports = make(map[ExecutionReportId]*function.ExecutionReport)
 	for key, report := range response.Reports {
 		responseExecutionReport.Reports[ExecutionReportId(key)] = report
+	}
+
+	if telemetry.DefaultTracer != nil {
+		trace.SpanFromContext(r.Ctx).AddEvent("Process Offload Post response complete")
 	}
 
 	// TODO: check how this is used in the QoSAware policy

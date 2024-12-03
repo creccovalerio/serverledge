@@ -548,6 +548,23 @@ func DeleteProgress(reqId ReqId, alsoFromEtcd bool) error {
 	return nil
 }
 
+func DeleteProgressFromEtcd(reqId ReqId) error {
+	cli, err := utils.GetEtcdClient()
+	if err != nil {
+		return fmt.Errorf("failed to connect to etcd: %v", err)
+	}
+	ctx := context.TODO()
+	progressMutexEtcd.Lock()
+	defer progressMutexEtcd.Unlock()
+	// remove the progress from ETCD
+	dresp, err := cli.Delete(ctx, getProgressEtcdKey(reqId))
+	if err != nil || dresp.Deleted != 1 {
+		return fmt.Errorf("failed progress delete: %v", err)
+	}
+
+	return nil
+}
+
 func getProgressEtcdKey(reqId ReqId) string {
 	return fmt.Sprintf("/progress/%s", reqId)
 }

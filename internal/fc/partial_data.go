@@ -216,6 +216,26 @@ func DeleteAllPartialData(reqId ReqId, alsoFromEtcd bool) (int64, error) {
 	return 1, nil
 }
 
+func DeleteAllPartialDataFromEtcd(reqId ReqId) (int64, error) {
+
+	// remove the partial data from ETCD
+	cli, err := utils.GetEtcdClient()
+	if err != nil {
+		return 0, fmt.Errorf("failed to connect to etcd: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	pdEtcdMutex.Lock()
+	removed, err := cli.Delete(ctx, getPartialDataEtcdKey(reqId, ""), clientv3.WithPrefix())
+	if err != nil {
+		pdEtcdMutex.Unlock()
+		cancel()
+		return 0, fmt.Errorf("failed partialData delete: %v", err)
+	}
+	cancel()
+	pdEtcdMutex.Unlock()
+	return removed.Deleted, nil
+}
+
 // savePartialDataInCache appends in cache a partial data related to a specific request and dagNode in a Dag
 func savePartialDataInCache(pds ...*PartialData) bool {
 	var partialDataIdType PartialDataId

@@ -58,7 +58,7 @@ func WorkflowOffload(r *CompositionRequest, serverUrl string, reports map[Execut
 		if resp.StatusCode == http.StatusTooManyRequests {
 			return CompositionExecutionReport{}, true, node.OutOfResourcesErr
 		}
-		return CompositionExecutionReport{}, true, fmt.Errorf("Remote returned: %v", resp.StatusCode)
+		return CompositionExecutionReport{}, true, fmt.Errorf("\nRemote returned: %v", resp.StatusCode)
 	}
 
 	if telemetry.DefaultTracer != nil {

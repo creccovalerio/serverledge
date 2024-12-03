@@ -257,6 +257,9 @@ func InvokeFunctionComposition(e echo.Context) error {
 		)
 	}
 
+	//goroutine to delete pd & progress periodically
+	go fc.DeletePdAndProgressFromEtcd()
+
 	if fcReq.Async {
 		go fc_scheduling.SubmitAsyncCompositionRequest(fcReq)
 		return e.JSON(http.StatusOK, function.AsyncResponse{ReqId: fcReq.Id()})

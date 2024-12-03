@@ -26,6 +26,7 @@ var requests chan *scheduledFcRequest
 var completions chan *completion
 var remoteServerUrl string
 var dataMap map[time.Time]ReturnedOutputData
+var reqIds []ReqId // slice of ReqId to delete pd & progress periodically
 
 // FunctionComposition is a serverless Function Composition
 type FunctionComposition struct {
@@ -240,6 +241,29 @@ func (fc *FunctionComposition) SaveToEtcd() error {
 	return nil
 }
 
+func DeletePdAndProgressFromEtcd() {
+	var err error
+	ticker := time.NewTicker(60 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		if len(reqIds) != 0 {
+			for _, requestId := range reqIds {
+				fmt.Println("There are pd & progress to delete for requestId: ", requestId)
+				err = DeleteProgressFromEtcd(requestId)
+				if err != nil {
+					panic(err)
+				}
+				_, err := DeleteAllPartialDataFromEtcd(requestId)
+				if err != nil {
+					panic(err)
+				}
+				reqIds = reqIds[1:] // remove the processed element (requestId) from reqIds
+			}
+		}
+	}
+}
+
 func Run(p FcPolicy) {
 	requests = make(chan *scheduledFcRequest, 500)
 	completions = make(chan *completion, 500)
@@ -387,22 +411,11 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 		}
 	}
 
-	// deleting progresses and partial datas from cache and etcd
 	if areInfoSaved {
-		if telemetry.DefaultTracer != nil {
-			trace.SpanFromContext(r.Ctx).AddEvent("Delete pd & progress from etcd start")
-		}
-		err = DeleteProgress(requestId, cache.Persist)
-		if err != nil {
-			return CompositionExecutionReport{}, err
-		}
-		_, errDel := DeleteAllPartialData(requestId, cache.Persist)
-		if errDel != nil {
-			return CompositionExecutionReport{}, errDel
-		}
-		if telemetry.DefaultTracer != nil {
-			trace.SpanFromContext(r.Ctx).AddEvent("Delete pd & progress from etcd complete")
-		}
+		/* saving requestIds of offloaded requests in order to pass them
+		 * to the goroutine to do the periodic delete of pd & progress
+		 * associated with a specific requestId */
+		reqIds = append(reqIds, requestId)
 	}
 
 	r.ExecReport.Result = pd.Data

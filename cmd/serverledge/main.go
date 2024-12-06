@@ -180,6 +180,9 @@ func main() {
 	fcSchedulingPolicy := api.CreateFcSchedulingPolicy()
 	go fc.Run(fcSchedulingPolicy)
 
+	//goroutine to delete pd & progress periodically
+	go fc.DeletePdAndProgressFromEtcd()
+
 	if !isInCloud {
 		err = registration.InitEdgeMonitoring(registry)
 		if err != nil {

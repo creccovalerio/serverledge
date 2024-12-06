@@ -99,7 +99,7 @@ var compPollCmd = &cobra.Command{
 var compName, funcName, runtime, handler, customImage, src, qosClass, jsonSrc string
 var requestId string
 var memory int64
-var cpuDemand, qosMaxRespT float64
+var cpuDemand, qosMaxRespT, qosMaxFcRespT float64
 var inputs []string
 var outputs []string
 var params []string
@@ -110,6 +110,7 @@ var canDoFunctionCompositionOffloading bool
 var verbose bool
 var returnOutput bool
 var rmFnOnDeletion bool
+var profilingFlag bool
 
 func Init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
@@ -150,7 +151,7 @@ func Init() {
 
 	rootCmd.AddCommand(compInvokeCmd)
 	compInvokeCmd.Flags().StringVarP(&compName, "function-composition", "f", "", "name of the function composition")
-	compInvokeCmd.Flags().Float64VarP(&qosMaxRespT, "resptime", "r", -1.0, "Max. response time (optional)")
+	compInvokeCmd.Flags().Float64VarP(&qosMaxFcRespT, "resptime", "r", -1.0, "Max. response time (optional)")
 	compInvokeCmd.Flags().StringVarP(&qosClass, "class", "c", "", "QoS class (optional)")
 	compInvokeCmd.Flags().StringSliceVarP(&params, "param", "p", nil, "Composition parameter: <name>:<value>")
 	compInvokeCmd.Flags().StringVarP(&paramsFile, "params_file", "j", "", "File containing parameters (JSON) for composition")
@@ -162,6 +163,8 @@ func Init() {
 	compCreateCmd.Flags().StringVarP(&compName, "function-composition", "f", "", "name of the function")
 	compCreateCmd.Flags().StringVarP(&jsonSrc, "src", "s", "", "source Amazon States Language file  that defines the function composition")
 	compCreateCmd.Flags().BoolVarP(&rmFnOnDeletion, "deletion", "d", false, "flag to delete also functions associated with the FC")
+	compCreateCmd.Flags().BoolVarP(&profilingFlag, "profiling", "q", false, "Allowing profiling of the fc")
+	compCreateCmd.Flags().StringSliceVarP(&params, "param", "p", nil, "Composition profiling parameters: <name>:<value>")
 
 	rootCmd.AddCommand(compDeleteCmd)
 	compDeleteCmd.Flags().StringVarP(&compName, "function-composition", "f", "", "name of the function composition")
@@ -487,12 +490,11 @@ func invokeFunctionComposition(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// Prepare request // TODO: it's ok to reuse the same type that function invocation uses?
-	request := client.InvocationRequest{
-		Params:   paramsMap,
-		QoSClass: api.DecodeServiceClass(qosClass),
+	request := client.CompositionInvocationRequest{
+		Params: paramsMap,
+		//QoSClass: api.DecodeServiceClass(qosClass),
 		// QoSClass:        qosClass,
-		QoSMaxRespT:       qosMaxRespT,
+		QosMaxFcRespT:     qosMaxFcRespT,
 		CanDoOffloading:   canDoFunctionOffloading,
 		CanDoFcOffloading: canDoFunctionCompositionOffloading,
 		Async:             asyncInvocation}
@@ -515,7 +517,77 @@ func invokeFunctionComposition(cmd *cobra.Command, args []string) {
 	utils.PrintJsonResponse(resp.Body)
 }
 
+func invokeFunctionCompositionProfiling() {
+	if len(compName) < 1 {
+		fmt.Printf("Invalid composition name.\n")
+		os.Exit(1)
+	}
+
+	// Parse parameters
+	paramsMap := make(map[string]interface{})
+
+	// Parameters can be specified either via file ("--params_file") or via cli ("--param")
+	if len(params) > 0 && len(paramsFile) > 0 {
+		fmt.Println("Parameters must be specified using either --param OR --params_file")
+		os.Exit(1)
+	}
+	if len(params) > 0 {
+		for _, rawParam := range params {
+			tokens := strings.Split(rawParam, ":")
+			if len(tokens) < 2 {
+				return
+			}
+			paramsMap[tokens[0]] = strings.Join(tokens[1:], ":")
+		}
+	}
+	if len(paramsFile) > 0 {
+		jsonFile, err := os.Open(paramsFile)
+		defer jsonFile.Close()
+		byteValue, _ := io.ReadAll(jsonFile)
+		err = json.Unmarshal(byteValue, &paramsMap)
+		if err != nil {
+			fmt.Printf("Could not parse JSON-encoded parameters from '%s'\n", paramsFile)
+			os.Exit(1)
+		}
+	}
+
+	// Prepare request // TODO: it's ok to reuse the same type that function invocation uses?
+	request := client.CompositionInvocationRequest{
+		Params: paramsMap,
+		//QoSClass: api.DecodeServiceClass(qosClass),
+		// QoSClass:        qosClass,
+		QosMaxFcRespT:     qosMaxFcRespT,
+		CanDoOffloading:   canDoFunctionOffloading,
+		CanDoFcOffloading: canDoFunctionCompositionOffloading,
+		Async:             asyncInvocation}
+	invocationBody, err := json.Marshal(request)
+	if err != nil {
+		os.Exit(1)
+	}
+
+	// Send invocation request
+	url := fmt.Sprintf("http://%s:%d/play/%s", ServerConfig.Host, ServerConfig.Port, compName)
+	resp, err := utils.PostJson(url, invocationBody)
+	if err != nil {
+		fmt.Println(err)
+		if resp != nil {
+			utils.PrintErrorResponse(resp.Body)
+		}
+		os.Exit(2)
+	}
+	utils.PrintJsonResponse(resp.Body)
+}
+
+func executeProfiling(paramsList []string, funcOffload bool) {
+	params = paramsList
+	canDoFunctionOffloading = funcOffload
+	invokeFunctionCompositionProfiling()
+}
+
 func createComposition(cmd *cobra.Command, args []string) {
+
+	var allParams [][]string
+
 	if compName == "" || jsonSrc == "" {
 		cmd.Help()
 		os.Exit(1)
@@ -545,6 +617,24 @@ func createComposition(cmd *cobra.Command, args []string) {
 		fmt.Printf("Creation request failed: %v\n", err)
 		os.Exit(2)
 	}
+
+	// implementing automatic fc profiling after creation
+	if profilingFlag {
+		var i = 0
+		for _, param := range params {
+			allParams = append(allParams, []string{param})
+		}
+
+		utils.PrintMessage(compName)
+		for _, param := range allParams {
+			for i < 30 {
+				executeProfiling(param, true)
+				i++
+			}
+			i = 0
+		}
+	}
+
 	utils.PrintJsonResponse(resp.Body)
 }
 

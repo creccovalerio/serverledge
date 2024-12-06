@@ -214,7 +214,7 @@ func InvokeFunctionComposition(e echo.Context) error {
 
 	// instead of saving only one RequestQoS, we save a map with an entry for each function in the composition
 	fcReq.RequestQoSMap = fcInvocationRequest.RequestQoSMap
-
+	fcReq.QoSMaxFcRespT = fcInvocationRequest.QosMaxFcRespT
 	fcReq.CanDoOffloading = fcInvocationRequest.CanDoOffloading
 	fcReq.CanDoFcOffloading = fcInvocationRequest.CanDoFcOffloading
 	fcReq.Async = fcInvocationRequest.Async
@@ -257,9 +257,6 @@ func InvokeFunctionComposition(e echo.Context) error {
 		)
 	}
 
-	//goroutine to delete pd & progress periodically
-	go fc.DeletePdAndProgressFromEtcd()
-
 	if fcReq.Async {
 		go fc_scheduling.SubmitAsyncCompositionRequest(fcReq)
 		return e.JSON(http.StatusOK, function.AsyncResponse{ReqId: fcReq.Id()})
@@ -274,9 +271,19 @@ func InvokeFunctionComposition(e echo.Context) error {
 		if err != nil {
 			panic(err)
 		}
+
+		/* metricFcRespTime is the response time without the initTime
+		 * of the containers */
+		metricFcRespTime := fcReq.ExecReport.ResponseTime
+		for _, funcReport := range fcReq.ExecReport.Reports {
+			if funcReport.InitTime != 0 {
+				metricFcRespTime -= funcReport.InitTime
+			}
+		}
+
 		m.Record(
 			fcReq.Ctx,
-			fcReq.ExecReport.ResponseTime,
+			metricFcRespTime,
 			metric.WithAttributes(attribute.String("functionCompositionInvocationRespTime", fcReq.Fc.Name)))
 	}
 

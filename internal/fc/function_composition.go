@@ -243,7 +243,7 @@ func (fc *FunctionComposition) SaveToEtcd() error {
 
 func DeletePdAndProgressFromEtcd() {
 	var err error
-	ticker := time.NewTicker(60 * time.Second)
+	ticker := time.NewTicker(100 * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {
@@ -368,14 +368,17 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 		}
 
 		if fcSchedDecision.action == EXEC_LOCAL {
+			fmt.Println("EXEC LOCAL")
 			pd, progress, shouldContinue, err = fc.Workflow.Execute(r, pd, progress)
 			if err != nil {
 				progress.Print()
 				return CompositionExecutionReport{Result: nil, Progress: progress}, fmt.Errorf("failed dag execution: %v", err)
 			}
 			schedFcRequest.CompositionRequest.Iteration++
+			r.ExecReport.ResponseTime = time.Since(r.Arrival).Seconds()
+			fmt.Println("SHOULD CONTINUE LOCAL: ", shouldContinue)
 		} else if fcSchedDecision.action == EXEC_REMOTE {
-
+			fmt.Println("EXEC REMOTE")
 			if telemetry.DefaultTracer != nil {
 				trace.SpanFromContext(r.Ctx).AddEvent("Save pd & progress on etcd start")
 			}
@@ -388,6 +391,8 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 			if err != nil {
 				return CompositionExecutionReport{}, err
 			}
+
+			fmt.Println("INFO SAVED: ", pd)
 
 			if telemetry.DefaultTracer != nil {
 				trace.SpanFromContext(r.Ctx).AddEvent("Save pd & progress on etcd complete")
@@ -402,13 +407,18 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 			if err != nil {
 				return CompositionExecutionReport{}, err
 			}
+
+			fmt.Println("REMOTE RES: ", response.Result)
 			pd.Data = response.Result // WorkflowOffload has executed interaly the remaining part of the workflow
 			r.ExecReport.Reports = response.Reports
+			r.ExecReport.ResponseTime = time.Since(r.Arrival).Seconds()
 			schedFcRequest.CompositionRequest.Iteration++
+			fmt.Println("SHOULD CONTINUE REMOTE: ", shouldContinue)
 		} else {
 			// drop case
 			return CompositionExecutionReport{}, err
 		}
+
 	}
 
 	if areInfoSaved {
@@ -418,6 +428,7 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 		reqIds = append(reqIds, requestId)
 	}
 
+	fmt.Println("FINAL RES: ", pd.Data)
 	r.ExecReport.Result = pd.Data
 
 	return r.ExecReport, nil
@@ -448,21 +459,26 @@ func (fc *FunctionComposition) InvokeFunctionCompositionOffload(r *CompositionRe
 		return CompositionExecutionReport{Result: nil, Progress: progress}, fmt.Errorf("failed to get partial data: %v", err)
 	}
 
+	fmt.Println("RETRIEVED INPUT: ", pd)
+
 	if telemetry.DefaultTracer != nil {
 		trace.SpanFromContext(r.Ctx).AddEvent("Retrieve pd & progress from etcd complete")
 	}
 
 	shouldContinue := true
 	for shouldContinue {
+		fmt.Println("EXEC REMOTE LOCAL")
 		// executing dag
 		pd, progress, shouldContinue, err = fc.Workflow.Execute(r, pd, progress)
 		if err != nil {
 			progress.Print()
 			return CompositionExecutionReport{Result: nil, Progress: progress}, fmt.Errorf("failed dag execution: %v", err)
 		}
+		r.ExecReport.ResponseTime = time.Since(r.Arrival).Seconds()
 	}
 
 	r.ExecReport.Result = pd.Data
+	fmt.Println("REMOTE RES: ", pd.Data)
 	return r.ExecReport, nil
 }
 
@@ -647,7 +663,7 @@ func (cer *CompositionExecutionReport) String() string {
 				output = report.Output
 			}
 
-			str += fmt.Sprintf("\n\t\t%s: {ResponseTime: %f, IsWarmStart: %v, InitTime: %f, OffloadLatency: %f, Duration: %f, SchedAction: %v, Output: %s, Result: %s}", id, report.ResponseTime, report.IsWarmStart, report.InitTime, report.OffloadLatency, report.Duration, schedAction, output, report.Result)
+			str += fmt.Sprintf("\n\t\t%s: {ResponseTime: %f, IsWarmStart: %v, InitTime: %f, ColdStartTime: %f, OffloadLatency: %f, Duration: %f, SchedAction: %v, Output: %s, Result: %s}", id, report.ResponseTime, report.IsWarmStart, report.InitTime, report.ColdStartTime, report.OffloadLatency, report.Duration, schedAction, output, report.Result)
 			if j < len(cer.Reports)-1 {
 				str += ","
 			}
@@ -727,6 +743,11 @@ func (cer *CompositionExecutionReport) Equals(other types.Comparable) bool {
 
 		if report.InitTime != report2.InitTime {
 			fmt.Printf("InitTime: report1 '%v' is different from report2 '%v'\n", report.InitTime, report2.InitTime)
+			fieldAllEqual = false
+		}
+
+		if report.ColdStartTime != report2.ColdStartTime {
+			fmt.Printf("ColdStart: report1 '%v' is different from report2 '%v'\n", report.ColdStartTime, report2.ColdStartTime)
 			fieldAllEqual = false
 		}
 

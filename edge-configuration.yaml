@@ -10,7 +10,7 @@ container.pool.memory: 3072
 #container.pool.cpus: 2.0
 scheduler.queue.capacity: 0
 
-tracing.enabled: true
+tracing.enabled: false
 #tracing.outfile: ./tracing/tracing.json
 
-metrics.enabled: false
+metrics.enabled: true

@@ -1,0 +1,108 @@
+{
+    "Comment": "An example of the Amazon States Language using a choice state.",
+    "StartAt": "ChoiceState",
+    "States": {
+      "ChoiceState": {
+        "Type": "Choice",
+        "Choices": [
+            {
+                "And": [
+                    {
+                        "Variable": "$.input",
+                        "IsPresent": true
+                    },
+                    {
+                        "Variable": "$.input",
+                        "IsNumeric": true
+                    },
+                    {
+                        "Variable": "$.input",
+                        "NumericLessThan": 8
+                    }
+                ],
+                "Next": "FirstMatchState"
+            }
+        ],
+        "Default": "DefaultState"
+      },
+  
+      "FirstMatchState": {
+        "Comment": "Lang=Python",
+        "Type": "Task",
+        "Resource": "sumMatrix",
+        "Next": "ChoiceState2"
+      },
+
+      "ChoiceState2": {
+        "Type": "Choice",
+        "Choices": [
+            {
+                "And": [
+                    {
+                        "Variable": "$.input",
+                        "IsPresent": true
+                    },
+                    {
+                        "Variable": "$.input",
+                        "NumericLessThan": 43
+                    }
+                ],
+                "Next": "NextPrimeState"
+            }
+        ],
+        "Default": "SucceedState"
+      },
+
+      "DefaultState": {
+        "Type": "Fail",
+        "Error": "DefaultStateError",
+        "Cause": "Too Large Number!"
+      },
+  
+      "SucceedState": {
+        "Type": "Succeed"
+      },
+
+      "NextPrimeState": {
+        "Comment": "Lang=Python",
+        "Type": "Task",
+        "Resource": "greatestPrime",
+        "Next": "NextMatrixState"
+      },
+
+      "NextMatrixState": {
+        "Comment": "Lang=Python",
+        "Type": "Task",
+        "Resource": "sumMatrix",
+        "Next": "NextPrimeState2"
+      },
+
+      "NextPrimeState2": {
+        "Comment": "Lang=Python",
+        "Type": "Task",
+        "Resource": "greatestPrime",
+        "Next": "NextMatrixState2"
+      },
+
+      "NextMatrixState2": {
+        "Comment": "Lang=Python",
+        "Type": "Task",
+        "Resource": "sumMatrix",
+        "Next": "NextMatrixState3"
+      },
+
+      "NextMatrixState3": {
+        "Comment": "Lang=Python",
+        "Type": "Task",
+        "Resource": "smoothSumMatrix",
+        "Next": "NextMatrixState4"
+      },
+
+      "NextMatrixState4": {
+        "Comment": "Lang=Python",
+        "Type": "Task",
+        "Resource": "inc",
+        "End": true
+      }
+    }
+  }

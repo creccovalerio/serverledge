@@ -29,7 +29,7 @@ type CompositionInvocationRequest struct {
 	Params            map[string]interface{}
 	RequestQoSMap     map[string]function.RequestQoS
 	Reports           map[string]*function.ExecutionReport
-	QosMaxRespT       float64
+	QosMaxFcRespT     float64
 	CanDoOffloading   bool
 	CanDoFcOffloading bool
 	Async             bool

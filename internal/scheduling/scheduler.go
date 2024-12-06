@@ -80,6 +80,7 @@ func Run(p Policy) {
 				if err != nil {
 					panic(err)
 				}
+
 				m.Record(
 					c.scheduledRequest.Ctx,
 					c.ExecReport.Duration,
@@ -207,6 +208,7 @@ func handleColdStart(r *scheduledRequest) (isSuccess bool) {
 	var m metric.Float64Histogram
 	var err error
 	var start time.Time
+	var duration time.Duration
 	if telemetry.DefaultTracer != nil {
 		trace.SpanFromContext(r.Ctx).AddEvent("Container init start")
 	}
@@ -232,12 +234,13 @@ func handleColdStart(r *scheduledRequest) (isSuccess bool) {
 		}
 
 		if telemetry.MetricsEnabled {
-			duration := time.Since(start)
+			duration = time.Since(start)
 			m.Record(
 				r.Ctx,
 				duration.Seconds(),
 				metric.WithAttributes(attribute.String("functColdStartHistogram", r.Fun.Name)))
 		}
+		r.ExecReport.ColdStartTime = duration.Seconds()
 		execLocally(r, newContainer, false)
 		return true
 	}

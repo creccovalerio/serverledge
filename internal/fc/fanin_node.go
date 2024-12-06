@@ -115,6 +115,7 @@ func (f *FanInNode) Exec(compRequest *CompositionRequest, params ...map[string]i
 		ResponseTime:   respAndDuration,
 		IsWarmStart:    true, // not in a container
 		InitTime:       0,
+		ColdStartTime:  0,
 		OffloadLatency: 0,
 		Duration:       respAndDuration,
 		SchedAction:    "",

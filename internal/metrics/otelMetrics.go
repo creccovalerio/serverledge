@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/grussorusso/serverledge/internal/config"
 	"github.com/grussorusso/serverledge/internal/fc"
 	go_api "github.com/prometheus/client_golang/api"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
@@ -142,7 +143,12 @@ func PeriodicalMetricsRetrieveFromPrometheus() {
 
 			wg.Wait()
 			fmt.Println("All queries completed")
-			fc.SubmitInfos(dataToSend)
+			policyConf := config.GetString(config.SCHEDULING_FC_POLICY, "default")
+			if policyConf == "edgecloud" {
+				cep := fc.CloudEdgePolicy{}
+				cep.SubmitInfos(dataToSend)
+			}
+
 		}
 	}
 }

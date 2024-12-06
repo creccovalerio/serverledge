@@ -44,6 +44,16 @@ func PrintJsonResponse(resp io.ReadCloser) {
 	}
 }
 
+func PrintMessage(fcName string) {
+	var msg bytes.Buffer
+	msg.WriteString(fmt.Sprintf("Profiling [%s]...\n", fcName))
+	_, err := msg.WriteTo(os.Stdout)
+	if err != nil {
+		fmt.Printf("Error while writing message to stdout: %s\n", err)
+		return
+	}
+}
+
 func PrintErrorResponse(resp io.ReadCloser) {
 	defer resp.Close()
 	body, err := io.ReadAll(resp)

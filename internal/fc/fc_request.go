@@ -18,8 +18,9 @@ type CompositionRequest struct {
 	Arrival           time.Time
 	ExecReport        CompositionExecutionReport     // each function has its execution report, and the composition has additional metrics
 	RequestQoSMap     map[string]function.RequestQoS // every function should have its RequestQoS
-	CanDoOffloading   bool                           // every function inherits this flag
-	CanDoFcOffloading bool                           // every function inherits this flag
+	QoSMaxFcRespT     float64
+	CanDoOffloading   bool // every function inherits this flag
+	CanDoFcOffloading bool
 	Async             bool
 	Iteration         int
 }

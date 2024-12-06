@@ -1,0 +1,89 @@
+{
+    "Comment": "An example of the Amazon States Language using a choice state.",
+    "StartAt": "FirstState",
+    "States": {
+      "FirstState": {
+        "Comment": "Lang=Python",
+        "Type": "Task",
+        "Resource": "greatestPrime",
+        "Next": "ChoiceState"
+      },
+      "ChoiceState": {
+        "Type": "Choice",
+        "Choices": [
+            {
+                "And": [
+                    {
+                        "Variable": "$.input",
+                        "IsPresent": true
+                    },
+                    {
+                        "Variable": "$.input",
+                        "IsNumeric": true
+                    },
+                    {
+                        "Variable": "$.input",
+                        "NumericLessThan": 65
+                    }
+                ],
+                "Next": "FirstMatchState"
+            }
+        ],
+        "Default": "DefaultState"
+      },
+  
+      "FirstMatchState": {
+        "Comment": "Lang=Python",
+        "Type": "Task",
+        "Resource": "greatestPrime",
+        "Next": "ChoiceState2"
+      },
+
+      "ChoiceState2": {
+        "Type": "Choice",
+        "Choices": [
+            {
+                "And": [
+                    {
+                        "Variable": "$.input",
+                        "IsPresent": true
+                    },
+                    {
+                        "Variable": "$.input",
+                        "NumericLessThan": 60
+                    }
+                ],
+                "Next": "NextState"
+            }
+        ],
+        "Default": "DefaultState"
+      },
+
+      "DefaultState": {
+        "Type": "Fail",
+        "Error": "DefaultStateError",
+        "Cause": "Too Large Number!"
+      },
+    
+      "NextState": {
+        "Comment": "Lang=Python",
+        "Type": "Task",
+        "Resource": "fibonacci",
+        "Next": "NextState3"
+      },
+
+      "NextState2": {
+        "Comment": "Lang=Python",
+        "Type": "Task",
+        "Resource": "fibonacci",
+        "Next": "NextState3"
+      },
+
+      "NextState3": {
+        "Comment": "Lang=Python",
+        "Type": "Task",
+        "Resource": "inc",
+        "End": true
+      }
+    }
+  }

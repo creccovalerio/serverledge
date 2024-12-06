@@ -1,21 +1,16 @@
 def handler(params, context):
-    n = params["n"]
-    return ''.join(fibonacci_nums(int(n)))
+    n = params["input"]
+    return fibonacci_iterative(int(n))
 
 
-def fibonacci_nums(n):
-    sequence = ""
-    if n <= 0:
-        sequence += "0"
-        return sequence
-    sequence = "0, 1"
-    count = 2
-    n1 = 0
-    n2 = 1
-    while count <= n:
-        next_value = n2 + n1
-        sequence += "," + "".join(str(next_value))
-        n1 = n2
-        n2 = next_value
-        count += 1
-    return sequence
+def fibonacci_iterative(n):
+    """
+    Compute the fibonacci number of n
+    :param n: a positive integer.
+    """
+    if n <= 1:
+        return n
+    a, b = 0, 1
+    for _ in range(2, n + 1):
+        a, b = b, a + b
+    return b

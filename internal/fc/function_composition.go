@@ -376,7 +376,6 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 			}
 			schedFcRequest.CompositionRequest.Iteration++
 			r.ExecReport.ResponseTime = time.Since(r.Arrival).Seconds()
-			fmt.Println("SHOULD CONTINUE LOCAL: ", shouldContinue)
 		} else if fcSchedDecision.action == EXEC_REMOTE {
 			fmt.Println("EXEC REMOTE")
 			if telemetry.DefaultTracer != nil {
@@ -413,10 +412,9 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 			r.ExecReport.Reports = response.Reports
 			r.ExecReport.ResponseTime = time.Since(r.Arrival).Seconds()
 			schedFcRequest.CompositionRequest.Iteration++
-			fmt.Println("SHOULD CONTINUE REMOTE: ", shouldContinue)
 		} else {
 			// drop case
-			return CompositionExecutionReport{}, err
+			return CompositionExecutionReport{}, node.OutOfResourcesErr
 		}
 
 	}

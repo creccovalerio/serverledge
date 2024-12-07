@@ -12,6 +12,7 @@ import (
 
 	"github.com/grussorusso/serverledge/internal/config"
 	"github.com/grussorusso/serverledge/internal/fc"
+	"github.com/grussorusso/serverledge/internal/scheduling"
 	go_api "github.com/prometheus/client_golang/api"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -20,6 +21,7 @@ import (
 )
 
 var dataToSend fc.ReturnedOutputData
+var dataFuncToSend scheduling.ReturnedFunctionOutputData
 
 // Struct to represent query with its id
 type queryInfos struct {
@@ -45,12 +47,15 @@ func queryPrometheus(wg *sync.WaitGroup, queryInfos queryInfos, api v1.API, ctx 
 	switch queryInfos.id {
 	case "AvgTotalColdStartsTime":
 		dataToSend.AvgTotalColdStartsTime = outputMap
+		dataFuncToSend.AvgTotalColdStartsTime = outputMap
 	case "AvgFcRespTime":
 		dataToSend.AvgFcRespTime = outputMap
 	case "AvgFunDurationTime":
 		dataToSend.AvgFunDurationTime = outputMap
+		dataFuncToSend.AvgFunDurationTime = outputMap
 	case "AvgOutputFunSize":
 		dataToSend.AvgOutputFunSize = outputMap
+		dataFuncToSend.AvgOutputFunSize = outputMap
 	}
 
 }
@@ -143,10 +148,16 @@ func PeriodicalMetricsRetrieveFromPrometheus() {
 
 			wg.Wait()
 			fmt.Println("All queries completed")
-			policyConf := config.GetString(config.SCHEDULING_FC_POLICY, "default")
-			if policyConf == "edgecloud" {
+			fcPolicyConf := config.GetString(config.SCHEDULING_FC_POLICY, "default")
+			if fcPolicyConf == "edgecloud" {
 				cep := fc.CloudEdgePolicy{}
 				cep.SubmitInfos(dataToSend)
+			}
+
+			policyConf := config.GetString(config.SCHEDULING_POLICY, "default")
+			if policyConf == "edgecloud" {
+				cep := scheduling.CloudEdgePolicy{}
+				cep.SubmitInfos(dataFuncToSend)
 			}
 
 		}

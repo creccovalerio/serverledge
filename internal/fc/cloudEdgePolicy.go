@@ -9,24 +9,20 @@ import (
 	"github.com/grussorusso/serverledge/internal/node"
 )
 
-// CloudEdgePolicy supports only Edge-Cloud Offloading. Executes locally first,
-// but if no resources are available and offload is enabled offloads the request to a cloud node.
-// If no resources are available and offloading is disabled, drops the request.
-type CloudEdgePolicy struct{}
-
 var currentDataCep ReturnedOutputData
+
+type CloudEdgePolicy struct{}
 
 func (p *CloudEdgePolicy) SubmitInfos(data ReturnedOutputData) {
 	timestamp := time.Now()
-	dataMap[timestamp] = data
+	dataMap[timestamp] = data //adding actual data to historical data
 	currentDataCep = data
-	//dataMap[timestamp] = data //adding actual data to historical data
-	for key := range dataMap {
-		fmt.Println("------------------------------------------")
-		fmt.Println("Timestamp Key: ", key)
-		fmt.Println("Metrics: ", dataMap[key])
-		fmt.Println("------------------------------------------")
-	}
+
+	fmt.Println("------------------------------------------")
+	fmt.Println("Timestamp Key: ", timestamp)
+	fmt.Println("Metrics: ", dataMap[timestamp])
+	fmt.Println("------------------------------------------")
+
 	fmt.Println("")
 }
 
@@ -46,51 +42,25 @@ func (p *CloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 	memTreshold := totAvailableMem * (30 / 100)
 
 	fmt.Println("------------------------------------------")
-	fmt.Println("SCHEDULED REQUEST: ", r.Fc.Name)
+	fmt.Println("Scheduled workflow: ", r.Fc.Name)
 	fmt.Println("Avg Cold Start Time: ", currentDataCep.AvgTotalColdStartsTime)
-	fmt.Println("Avg Fc Response Time: ", r.Fc.Name, currentDataCep.AvgFcRespTime[r.Fc.Name])
-	fmt.Println("Actual Fc Response Time: ", r.ExecReport.ResponseTime)
+	fmt.Printf("Avg Fc [%s] Response Time: %f\n", r.Fc.Name, currentDataCep.AvgFcRespTime[r.Fc.Name])
+	fmt.Printf("Actual Fc [%s] Response Time: %f\n", r.Fc.Name, r.ExecReport.ResponseTime)
 
 	for _, fname := range r.Fc.Workflow.GetUniqueDagFunctions() {
-		fmt.Println("Avg Function Response Time: ", fname, currentDataCep.AvgFunDurationTime[fname])
+		fmt.Printf("Avg Function [%s] Response Time: %f\n", fname, currentDataCep.AvgFunDurationTime[fname])
 	}
 	for _, fname := range r.Fc.Workflow.GetUniqueDagFunctions() {
-		fmt.Println("Avg Output Function Size: ", fname, currentDataCep.AvgOutputFunSize[fname])
+		fmt.Printf("Avg Output Function [%s] Size: %f\n", fname, currentDataCep.AvgOutputFunSize[fname])
 	}
 
 	fmt.Println("Available amount of CPU: ", node.Resources.AvailableCPUs)
-	fmt.Println("Available amount of MemMB: ", node.Resources.AvailableMemMB)
 	fmt.Println("Tot amount of CPU: ", totAvailableCPUs)
+	fmt.Println("Available amount of MemMB: ", node.Resources.AvailableMemMB)
 	fmt.Println("Tot amount of MemMB: ", totAvailableMem)
 	fmt.Println("------------------------------------------")
 
 	fmt.Println("")
-
-	/*if r.CanDoFcOffloading && r.Iteration >= 3 {
-		handleCloudOffload(r)
-	} else {
-		handleExecuteLocal(r)
-	}*/
-	/*
-		if r.CanDoFcOffloading {
-			nextNodes, err := r.progress.NextNodes()
-			if err != nil {
-				fmt.Println("Error in retriving NextNodes()")
-			} else {
-				n, ok := r.Fc.Workflow.Find(nextNodes[0])
-				fmt.Printf("Node type: %T\n", n)
-				if ok {
-					switch node := n.(type) {
-					case *SimpleNode:
-						fmt.Println("EXEC SIMPLE")
-						funct, ok := function.GetFunction(node.Func)
-						if ok {
-							fmt.Println("Scheduling Node with func: ", funct)
-						}
-					}
-				}
-			}
-		}*/
 
 	/* Decide to execute the workflow into a cloud node if:                      *
 	 *	- workflow offloading is active;                                         *
@@ -104,17 +74,25 @@ func (p *CloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 			r.ExecReport.ResponseTime > (currentDataCep.AvgFcRespTime[r.Fc.Name]*0.95) ||
 			node.Resources.AvailableCPUs <= cpuTreshold ||
 			node.Resources.AvailableMemMB <= memTreshold) {
-		fmt.Println("Scheduling the remaining part of the fc on the cloud...")
-		handleCloudOffload(r)
-	} else {
-		handleExecuteLocal(r)
-	}
 
-	/*
-		if r.CanDoFcOffloading && r.Iteration >= 3 {
-			handleCloudOffload(r)
-		} else {
-			handleExecuteLocal(r)
-		}*/
+		/* if fc offloading flag is active and at least one of the previous *
+		 * performance condition are met: schedule decision -> Offload      */
+		fmt.Println("Scheduling the remaining part of the workflow on the cloud...")
+		handleCloudOffload(r)
+		return
+	} else if node.Resources.AvailableCPUs >= cpuTreshold &&
+		node.Resources.AvailableMemMB >= memTreshold {
+		/* if fc offloading flag is NOT active and the previous performance *
+		 * condition are met: fc schedule decision -> Exec locally          */
+		fmt.Println("Scheduling locally...")
+		handleExecuteLocal(r)
+		return
+	} else {
+		/* if fc offloading flag is NOT active and threre are not enough *
+		 * resources: fc schedule decision -> Drop request               */
+		fmt.Println("Dropping...")
+		dropRequest(r)
+		return
+	}
 
 }

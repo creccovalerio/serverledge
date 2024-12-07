@@ -123,8 +123,10 @@ func acquireResources(cpuDemand float64, memDemand int64, destroyContainersIfNee
 		}
 	}
 
+	fmt.Println("RESOURCES: ", Resources.AvailableCPUs, Resources.AvailableMemMB)
 	Resources.AvailableCPUs -= cpuDemand
 	Resources.AvailableMemMB -= memDemand
+	fmt.Println("RESOURCES AA: ", Resources.AvailableCPUs, Resources.AvailableMemMB)
 
 	return true
 }

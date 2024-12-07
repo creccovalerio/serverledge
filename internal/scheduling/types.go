@@ -5,6 +5,12 @@ import (
 	"github.com/grussorusso/serverledge/internal/function"
 )
 
+type ReturnedFunctionOutputData struct {
+	AvgTotalColdStartsTime map[string]float64
+	AvgFunDurationTime     map[string]float64
+	AvgOutputFunSize       map[string]float64
+}
+
 // scheduledRequest represents a Request within the scheduling subsystem
 type scheduledRequest struct {
 	*function.Request

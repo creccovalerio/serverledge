@@ -130,6 +130,11 @@ func (f *FanOutNode) Exec(compRequest *CompositionRequest, params ...map[string]
 		Duration:       respAndDuration,
 		SchedAction:    "",
 	}
+
+	if compRequest.IsOffloaded {
+		/* set to this value in order to manage the remote response time metric */
+		execReport.SchedAction = "Offloaded"
+	}
 	compRequest.ExecReport.Reports[CreateExecutionReportId(f)] = execReport
 	//compRequest.ExecReport.Reports.Set(CreateExecutionReportId(f), execReport)
 	return output, err

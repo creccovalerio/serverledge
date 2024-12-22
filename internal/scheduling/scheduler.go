@@ -6,15 +6,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"runtime"
 	"time"
 
 	"github.com/grussorusso/serverledge/internal/node"
 	"github.com/grussorusso/serverledge/internal/telemetry"
-	"go.opentelemetry.io/otel"
+	"github.com/grussorusso/serverledge/utils"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/grussorusso/serverledge/internal/config"
@@ -24,6 +22,7 @@ import (
 )
 
 var requests chan *scheduledRequest
+var dataMap map[time.Time]ReturnedFunctionOutputData
 
 var parentCtx context.Context
 
@@ -36,6 +35,7 @@ var offloadingClient *http.Client
 func Run(p Policy) {
 	requests = make(chan *scheduledRequest, 500)
 	completions = make(chan *completion, 500)
+	dataMap = make(map[time.Time]ReturnedFunctionOutputData)
 
 	// initialize Resources resources
 	availableCores := runtime.NumCPU()
@@ -73,27 +73,12 @@ func Run(p Policy) {
 		case c = <-completions:
 			node.ReleaseContainer(c.contID, c.Fun)
 			p.OnCompletion(c.scheduledRequest)
-
+			fmt.Println("ON COMPLETION NODE")
 			if telemetry.MetricsEnabled {
-				meter := otel.Meter(os.Getenv("OTEL_SERVICE_NAME"))
-				m, err := telemetry.NewHistogramMetric(meter, "Function.duration", "Duration of a function")
-				if err != nil {
-					panic(err)
-				}
-
-				m.Record(
-					c.scheduledRequest.Ctx,
-					c.ExecReport.Duration,
-					metric.WithAttributes(attribute.String("functInvocationCounter", c.Fun.Name)))
-
-				mtr, err := telemetry.NewHistogramMetric(meter, "FunctionOutput.size", "Size of the function output")
-				if err != nil {
-					panic(err)
-				}
-				mtr.Record(
-					c.scheduledRequest.Ctx,
-					float64(len([]byte(c.ExecReport.Result))),
-					metric.WithAttributes(attribute.String("functionSizeHistogram", c.Fun.Name)))
+				fmt.Println("IN METR ON")
+				utils.CreateAndRecordNewHistogramMetric("Function.duration", "Duration of a function", c.scheduledRequest.Ctx, c.ExecReport.Duration, "functInvocationDuration", c.Fun.Name)
+				utils.CreateAndRecordNewHistogramMetric("FunctionOutput.size", "Size of the function output", c.scheduledRequest.Ctx, float64(len([]byte(c.ExecReport.Result))), "functionSizeHistogram", c.Fun.Name)
+				fmt.Println("METR SENT")
 
 			}
 		}
@@ -205,7 +190,6 @@ func SubmitAsyncRequest(r *function.Request) {
 
 func handleColdStart(r *scheduledRequest) (isSuccess bool) {
 
-	var m metric.Float64Histogram
 	var err error
 	var start time.Time
 	var duration time.Duration
@@ -214,11 +198,6 @@ func handleColdStart(r *scheduledRequest) (isSuccess bool) {
 	}
 
 	if telemetry.MetricsEnabled {
-		meter := otel.Meter(os.Getenv("OTEL_SERVICE_NAME"))
-		m, err = telemetry.NewHistogramMetric(meter, "ColdStart.duration", "Duration of a cold start")
-		if err != nil {
-			panic(err)
-		}
 		start = time.Now()
 	}
 
@@ -235,10 +214,7 @@ func handleColdStart(r *scheduledRequest) (isSuccess bool) {
 
 		if telemetry.MetricsEnabled {
 			duration = time.Since(start)
-			m.Record(
-				r.Ctx,
-				duration.Seconds(),
-				metric.WithAttributes(attribute.String("functColdStartHistogram", r.Fun.Name)))
+			utils.CreateAndRecordNewHistogramMetric("ColdStart.duration", "Duration of a cold start", r.Ctx, duration.Seconds(), "functColdStartHistogram", r.Fun.Name)
 		}
 		r.ExecReport.ColdStartTime = duration.Seconds()
 		execLocally(r, newContainer, false)
@@ -254,6 +230,7 @@ func execLocally(r *scheduledRequest, c container.ContainerID, warmStart bool) {
 	initTime := time.Now().Sub(r.Arrival).Seconds()
 	r.ExecReport.InitTime = initTime
 	r.ExecReport.IsWarmStart = warmStart
+	r.ExecReport.SchedAction = "Execute_local"
 
 	decision := schedDecision{action: EXEC_LOCAL, contID: c}
 	r.decisionChannel <- decision
@@ -266,6 +243,7 @@ func handleOffload(r *scheduledRequest, serverHost string) {
 		contID:     "",
 		remoteHost: serverHost,
 	}
+	r.ExecReport.SchedAction = "Offloaded"
 }
 
 func handleCloudOffload(r *scheduledRequest) {

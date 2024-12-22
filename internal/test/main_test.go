@@ -48,7 +48,7 @@ func testStartServerledge(isInCloud bool, outboundIp string) (*registration.Regi
 	//setting up cache parameters
 	api.CacheSetup()
 	schedulingPolicy := &scheduling.DefaultLocalPolicy{}
-	schedulingFcPolicy := &fc.CloudEdgePolicy{}
+	schedulingFcPolicy := &fc.ThresholdCloudEdgePolicy{}
 	// register to etcd, this way server is visible to the others under a given local area
 	registry := new(registration.Registry)
 	if isInCloud {

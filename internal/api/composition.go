@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/grussorusso/serverledge/internal/client"
@@ -19,12 +18,11 @@ import (
 	"github.com/grussorusso/serverledge/internal/node"
 	"github.com/grussorusso/serverledge/internal/scheduling"
 	"github.com/grussorusso/serverledge/internal/telemetry"
+	"github.com/grussorusso/serverledge/utils"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
 
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 )
 
 // ===== Function Composition =====
@@ -215,9 +213,15 @@ func InvokeFunctionComposition(e echo.Context) error {
 	// instead of saving only one RequestQoS, we save a map with an entry for each function in the composition
 	fcReq.RequestQoSMap = fcInvocationRequest.RequestQoSMap
 	fcReq.QoSMaxFcRespT = fcInvocationRequest.QosMaxFcRespT
+	if fcInvocationRequest.QosMaxFcRespT != 0 {
+		fcReq.QoSMaxFcRespT = fcInvocationRequest.QosMaxFcRespT
+	} else {
+		fcReq.QoSMaxFcRespT = 0
+	}
 	fcReq.CanDoOffloading = fcInvocationRequest.CanDoOffloading
 	fcReq.CanDoFcOffloading = fcInvocationRequest.CanDoFcOffloading
 	fcReq.Async = fcInvocationRequest.Async
+	fcReq.IsInProfilingMode = fcInvocationRequest.IsInProfilingMode
 	fcReq.Iteration = 0
 	//fcReq.ReqId = fmt.Sprintf("%v-%s%d", funComp.Name, node.NodeIdentifier[len(node.NodeIdentifier)-5:], fcReq.Arrival.Nanosecond())
 	reqId := fmt.Sprintf("%s-%s%d", funComp.Name, node.NodeIdentifier[len(node.NodeIdentifier)-5:], fcReq.Arrival.Nanosecond())
@@ -244,17 +248,7 @@ func InvokeFunctionComposition(e echo.Context) error {
 	}
 
 	if telemetry.MetricsEnabled {
-		meter := otel.Meter(os.Getenv("OTEL_SERVICE_NAME"))
-		m, err := telemetry.NewCounterMetric(meter)
-		if err != nil {
-			panic(err)
-		}
-
-		m.RequestCounter.Add(
-			context.WithValue(context.Background(), "ReqId", reqId),
-			1,
-			metric.WithAttributes(attribute.String("fcInvocationCounter", fcReq.Fc.Name)),
-		)
+		utils.CreateAndRecordNewCounterMetric(reqId, "fcInvocationCounter", fcReq.Fc.Name)
 	}
 
 	if fcReq.Async {
@@ -266,12 +260,6 @@ func InvokeFunctionComposition(e echo.Context) error {
 	err = fc_scheduling.SubmitCompositionRequest(fcReq)
 
 	if telemetry.MetricsEnabled {
-		meter := otel.Meter(os.Getenv("OTEL_SERVICE_NAME"))
-		m, err := telemetry.NewHistogramMetric(meter, "FunctionComposition.respTime", "Response time of a function composition")
-		if err != nil {
-			panic(err)
-		}
-
 		/* metricFcRespTime is the response time without the initTime
 		 * of the containers */
 		metricFcRespTime := fcReq.ExecReport.ResponseTime
@@ -280,11 +268,7 @@ func InvokeFunctionComposition(e echo.Context) error {
 				metricFcRespTime -= funcReport.InitTime
 			}
 		}
-
-		m.Record(
-			fcReq.Ctx,
-			metricFcRespTime,
-			metric.WithAttributes(attribute.String("functionCompositionInvocationRespTime", fcReq.Fc.Name)))
+		utils.CreateAndRecordNewHistogramMetric("FunctionComposition.respTime", "Response time of a function composition", fcReq.Ctx, metricFcRespTime, "functionCompositionInvocationRespTime", fcReq.Fc.Name)
 	}
 
 	if errors.Is(err, node.OutOfResourcesErr) {
@@ -339,7 +323,7 @@ func ExecuteOffloadedFunctionComposition(e echo.Context) error {
 	fcReq.Params = fcInvocationRequest.Params
 	fcReq.Arrival = time.Now()
 	fcReq.CanDoOffloading = fcInvocationRequest.CanDoOffloading
-
+	fcReq.IsOffloaded = true
 	reqId := fcInvocationRequest.ReqId
 	fcReq.Ctx = context.WithValue(context.Background(), "ReqId", reqId)
 

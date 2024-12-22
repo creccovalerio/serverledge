@@ -22,6 +22,8 @@ type CompositionRequest struct {
 	CanDoOffloading   bool // every function inherits this flag
 	CanDoFcOffloading bool
 	Async             bool
+	IsOffloaded       bool
+	IsInProfilingMode bool
 	Iteration         int
 }
 

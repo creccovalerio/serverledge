@@ -42,6 +42,7 @@ func NewSimpleNode(f string) *SimpleNode {
 }
 
 func (s *SimpleNode) Exec(compRequest *CompositionRequest, params ...map[string]interface{}) (map[string]interface{}, error) {
+	var funcProfilingMode bool = false
 	funct, ok := function.GetFunction(s.Func)
 	if !ok {
 		return nil, fmt.Errorf("SimpleNode.function is null: you must initialize SimpleNode's function to execute it")
@@ -61,6 +62,9 @@ func (s *SimpleNode) Exec(compRequest *CompositionRequest, params ...map[string]
 	now := time.Now()
 	requestId := fmt.Sprintf("%s-%s%d", s.Func, node.NodeIdentifier[len(node.NodeIdentifier)-5:], now.Nanosecond())
 	ctx := context.WithValue(context.Background(), "ReqId", requestId)
+	if compRequest.IsInProfilingMode {
+		funcProfilingMode = true
+	}
 	s.inputMutex.Lock()
 	r := &function.Request{
 		Ctx:     ctx,
@@ -68,13 +72,15 @@ func (s *SimpleNode) Exec(compRequest *CompositionRequest, params ...map[string]
 		Params:  params[0],
 		Arrival: now,
 		ExecReport: function.ExecutionReport{
+			FunctionName:   s.Func,
 			SchedAction:    "",
 			OffloadLatency: 0.0,
 		},
-		RequestQoS:      compRequest.RequestQoSMap[s.Func],
-		CanDoOffloading: true,
-		Async:           false,
-		IsInComposition: true,
+		RequestQoS:        compRequest.RequestQoSMap[s.Func],
+		CanDoOffloading:   true,
+		Async:             false,
+		IsInComposition:   true,
+		IsInProfilingMode: funcProfilingMode,
 	}
 	s.inputMutex.Unlock()
 
@@ -127,6 +133,12 @@ func (s *SimpleNode) Exec(compRequest *CompositionRequest, params ...map[string]
 	} else {
 		r.ExecReport.Result = fmt.Sprintf("%v", m)
 	}
+
+	if compRequest.IsOffloaded {
+		/* set to this value in order to manage the remote response time metric */
+		r.ExecReport.SchedAction = "Offloaded"
+	}
+
 	// saving execution report for this function
 	compRequest.ExecReport.Reports[CreateExecutionReportId(s)] = &r.ExecReport
 	//compRequest.ExecReport.Reports.Set(CreateExecutionReportId(s), &r.ExecReport)

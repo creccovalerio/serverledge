@@ -497,7 +497,8 @@ func invokeFunctionComposition(cmd *cobra.Command, args []string) {
 		QosMaxFcRespT:     qosMaxFcRespT,
 		CanDoOffloading:   canDoFunctionOffloading,
 		CanDoFcOffloading: canDoFunctionCompositionOffloading,
-		Async:             asyncInvocation}
+		Async:             asyncInvocation,
+		IsInProfilingMode: false}
 	invocationBody, err := json.Marshal(request)
 	if err != nil {
 		cmd.Help()
@@ -517,7 +518,7 @@ func invokeFunctionComposition(cmd *cobra.Command, args []string) {
 	utils.PrintJsonResponse(resp.Body)
 }
 
-func invokeFunctionCompositionProfiling() {
+func invokeFunctionCompositionProfiling(isInRemoteProfiling bool) {
 	if len(compName) < 1 {
 		fmt.Printf("Invalid composition name.\n")
 		os.Exit(1)
@@ -557,9 +558,9 @@ func invokeFunctionCompositionProfiling() {
 		//QoSClass: api.DecodeServiceClass(qosClass),
 		// QoSClass:        qosClass,
 		QosMaxFcRespT:     qosMaxFcRespT,
-		CanDoOffloading:   canDoFunctionOffloading,
 		CanDoFcOffloading: canDoFunctionCompositionOffloading,
-		Async:             asyncInvocation}
+		Async:             asyncInvocation,
+		IsInProfilingMode: isInRemoteProfiling}
 	invocationBody, err := json.Marshal(request)
 	if err != nil {
 		os.Exit(1)
@@ -578,15 +579,16 @@ func invokeFunctionCompositionProfiling() {
 	utils.PrintJsonResponse(resp.Body)
 }
 
-func executeProfiling(paramsList []string, funcOffload bool) {
+func executeProfiling(paramsList []string, fcOffload bool, isInProfiling bool) {
 	params = paramsList
-	canDoFunctionOffloading = funcOffload
-	invokeFunctionCompositionProfiling()
+	canDoFunctionCompositionOffloading = fcOffload
+	invokeFunctionCompositionProfiling(isInProfiling)
 }
 
 func createComposition(cmd *cobra.Command, args []string) {
 
 	var allParams [][]string
+	var nProfilingRounds = 1
 
 	if compName == "" || jsonSrc == "" {
 		cmd.Help()
@@ -618,6 +620,8 @@ func createComposition(cmd *cobra.Command, args []string) {
 		os.Exit(2)
 	}
 
+	utils.PrintJsonResponse(resp.Body)
+
 	// implementing automatic fc profiling after creation
 	if profilingFlag {
 		var i = 0
@@ -627,15 +631,23 @@ func createComposition(cmd *cobra.Command, args []string) {
 
 		utils.PrintMessage(compName)
 		for _, param := range allParams {
-			for i < 30 {
-				executeProfiling(param, true)
+			for i < nProfilingRounds {
+				/* execute local profiling of the workflow */
+				executeProfiling(param, false, true)
+				i++
+			}
+			i = 0
+		}
+
+		for _, param := range allParams {
+			for i < nProfilingRounds {
+				/* execute remote profiling of the workflow based on local profiling execution infos*/
+				executeProfiling(param, true, true)
 				i++
 			}
 			i = 0
 		}
 	}
-
-	utils.PrintJsonResponse(resp.Body)
 }
 
 func deleteComposition(cmd *cobra.Command, args []string) {

@@ -48,14 +48,22 @@ func queryPrometheus(wg *sync.WaitGroup, queryInfos queryInfos, api v1.API, ctx 
 	case "AvgTotalColdStartsTime":
 		dataToSend.AvgTotalColdStartsTime = outputMap
 		dataFuncToSend.AvgTotalColdStartsTime = outputMap
-	case "AvgFcRespTime":
-		dataToSend.AvgFcRespTime = outputMap
 	case "AvgFunDurationTime":
 		dataToSend.AvgFunDurationTime = outputMap
 		dataFuncToSend.AvgFunDurationTime = outputMap
 	case "AvgOutputFunSize":
 		dataToSend.AvgOutputFunSize = outputMap
 		dataFuncToSend.AvgOutputFunSize = outputMap
+	case "AvgRemoteFunDurationTime":
+		dataToSend.AvgFunRemoteDurationTime = outputMap
+		dataFuncToSend.AvgFunRemoteDurationTime = outputMap
+	case "AvgRemoteOutputFunSize":
+		dataToSend.AvgOutputFunRemoteSize = outputMap
+		dataFuncToSend.AvgOutputFunRemoteSize = outputMap
+	case "AvgFcRespTime":
+		dataToSend.AvgFcRespTime = outputMap
+	case "AvgFcRemoteRespTime":
+		dataToSend.AvgFcRemoteRespTime = outputMap
 	}
 
 }
@@ -127,12 +135,15 @@ func PeriodicalMetricsRetrieveFromPrometheus() {
 
 	queries := []queryInfos{
 		//{"sum(rate(ColdStart_duration_seconds_sum[1m])) / clamp_min(sum(rate(ColdStart_duration_seconds_count[1m])),1)", "AVG Cold Start Duration [1m]"},
-		{"AvgTotalColdStartsTime", "sum(ColdStart_duration_seconds_sum) / clamp_min(sum(ColdStart_duration_seconds_count),1)"},
-		{"AvgFcRespTime", "sum(FunctionComposition_respTime_seconds_sum) by (functionCompositionInvocationRespTime) / clamp_min(sum(FunctionComposition_respTime_seconds_count) by (functionCompositionInvocationRespTime), 1)"},
-		{"AvgFunDurationTime", "sum(Function_duration_seconds_sum) by (functInvocationCounter) / sum(Function_duration_seconds_count) by (functInvocationCounter)"},
+		{"AvgTotalColdStartsTime", "sum(ColdStart_duration_seconds_sum) by (functColdStartHistogram) / clamp_min(sum(ColdStart_duration_seconds_count) by (functColdStartHistogram), 1)"},
+		{"AvgFunDurationTime", "sum(Function_duration_seconds_sum) by (functInvocationDuration) / sum(Function_duration_seconds_count) by (functInvocationDuration)"},
 		{"AvgOutputFunSize", "sum(FunctionOutput_size_seconds_sum) by (functionSizeHistogram) / sum(FunctionOutput_size_seconds_count) by (functionSizeHistogram)"},
+		{"AvgRemoteFunDurationTime", "sum(Function_RemoteDuration_seconds_sum) by (functInvocationRemoteDuration) / sum(Function_RemoteDuration_seconds_count) by (functInvocationRemoteDuration)"},
+		{"AvgRemoteOutputFunSize", "sum(FunctionOutput_RemoteSize_seconds_sum) by (functionRemoteSizeHistogram) / sum(FunctionOutput_RemoteSize_seconds_count) by (functionRemoteSizeHistogram)"},
+		{"AvgFcRespTime", "sum(FunctionComposition_respTime_seconds_sum) by (functionCompositionInvocationRespTime) / clamp_min(sum(FunctionComposition_respTime_seconds_count) by (functionCompositionInvocationRespTime), 1)"},
+		{"AvgFcRemoteRespTime", "sum(FunctionComposition_remoteRespTime_seconds_sum) by (functionCompositionInvocationRemoteRespTime) / clamp_min(sum(FunctionComposition_remoteRespTime_seconds_count) by (functionCompositionInvocationRemoteRespTime), 1)"},
 	}
-	ticker := time.NewTicker(20 * time.Second)
+	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -149,17 +160,31 @@ func PeriodicalMetricsRetrieveFromPrometheus() {
 			wg.Wait()
 			fmt.Println("All queries completed")
 			fcPolicyConf := config.GetString(config.SCHEDULING_FC_POLICY, "default")
-			if fcPolicyConf == "edgecloud" {
-				cep := fc.CloudEdgePolicy{}
+			if fcPolicyConf == "greedyedgecloud" {
+				cep := fc.GreedyCloudEdgePolicy{}
+				cep.SubmitInfos(dataToSend)
+			} else if fcPolicyConf == "deadlinebased" {
+				cep := fc.DeadlineCloudEdgePolicy{}
+				cep.SubmitInfos(dataToSend)
+			} else if fcPolicyConf == "thresholdbased" {
+				cep := fc.ThresholdCloudEdgePolicy{}
+				cep.SubmitInfos(dataToSend)
+			} else if fcPolicyConf == "dynthresholdbased" {
+				cep := fc.ThresholdDynCloudEdgePolicy{}
+				cep.SubmitInfos(dataToSend)
+			} else if fcPolicyConf == "cloudonly" {
+				cep := fc.CloudOnlyPolicy{}
+				cep.SubmitInfos(dataToSend)
+			} else if fcPolicyConf == "edgeonly" {
+				cep := fc.EdgeOnlyPolicy{}
 				cep.SubmitInfos(dataToSend)
 			}
 
 			policyConf := config.GetString(config.SCHEDULING_POLICY, "default")
-			if policyConf == "edgecloud" {
-				cep := scheduling.CloudEdgePolicy{}
+			if policyConf == "greedyedgecloud" {
+				cep := scheduling.GreedyCloudEdgePolicy{}
 				cep.SubmitInfos(dataFuncToSend)
 			}
-
 		}
 	}
 }

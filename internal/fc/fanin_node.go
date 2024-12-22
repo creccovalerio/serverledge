@@ -120,6 +120,12 @@ func (f *FanInNode) Exec(compRequest *CompositionRequest, params ...map[string]i
 		Duration:       respAndDuration,
 		SchedAction:    "",
 	}
+
+	if compRequest.IsOffloaded {
+		/* set to this value in order to manage the remote response time metric */
+		execReport.SchedAction = "Offloaded"
+	}
+
 	compRequest.ExecReport.Reports[CreateExecutionReportId(f)] = execReport
 	//compRequest.ExecReport.Reports.Set(CreateExecutionReportId(f), execReport)
 	return fanInOutput, nil

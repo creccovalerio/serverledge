@@ -1,36 +1,35 @@
 package scheduling
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/grussorusso/serverledge/internal/node"
 )
 
-// EdgePolicy supports only Edge-Edge offloading. Always does offloading to an edge node if enabled. When offloading is not enabled executes the request locally.
-type EdgePolicy struct{}
+/* EdgePolicy supports only local execution. It tries to acquire a warm container   *
+ * or to handle the cold start in order to execute a function locally. If the local *
+ * execution is not possible, the request will be dropped						    */
+type EdgeOnlyPolicy struct{}
 
-func (p *EdgePolicy) Init() {
+func (p *EdgeOnlyPolicy) Init() {
 }
 
-func (p *EdgePolicy) OnCompletion(_ *scheduledRequest) {
-
+func (p *EdgeOnlyPolicy) OnCompletion(_ *scheduledRequest) {
 }
 
-func (p *EdgePolicy) OnArrival(r *scheduledRequest) {
-	if r.CanDoOffloading {
-		url := pickEdgeNodeForOffloading(r)
-		if url != "" {
-			handleOffload(r, url)
-			return
-		}
-	} else {
-		containerID, err := node.AcquireWarmContainer(r.Fun)
-		if err == nil {
-			log.Printf("Using a warm container for: %v\n", r)
-			execLocally(r, containerID, true)
-		} else if handleColdStart(r) {
-			return
-		}
+func (p *EdgeOnlyPolicy) OnArrival(r *scheduledRequest) {
+
+	fmt.Println("----------------------------------------------------")
+	fmt.Printf("Scheduled function: %s with policy: EDGE_ONLY\n", r.Fun.Name)
+	fmt.Println("----------------------------------------------------")
+	containerID, err := node.AcquireWarmContainer(r.Fun)
+	if err == nil {
+		log.Printf("Using a warm container for: %v\n", r)
+		execLocally(r, containerID, true)
+		return
+	} else if handleColdStart(r) {
+		return
 	}
 
 	dropRequest(r)

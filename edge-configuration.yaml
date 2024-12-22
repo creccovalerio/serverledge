@@ -4,8 +4,8 @@ etcd.address: 192.168.1.9:2379
 cloud.server.url: "http://192.168.1.9:1324"
 
 offloading: true
-scheduler.policy: default
-fc_scheduler.policy: edgecloud
+scheduler.policy: greedyedgecloud
+fc_scheduler.policy: dynthresholdbased
 container.pool.memory: 3072
 scheduler.queue.capacity: 0
 

@@ -43,6 +43,26 @@ func GetFunctionPool(f *function.Function) *ContainerPool {
 	return fp
 }
 
+func HasWarmContainers(f *function.Function) bool {
+	// TODO: picking most-recent / least-recent container might be better?
+	Resources.Lock()
+	defer Resources.Unlock()
+
+	fp := GetFunctionPool(f)
+	// fmt.Printf("ready containers: %+v\nbusy containers: %+v\n", fp.ready.Len(), fp.busy.Len())
+	elem := fp.ready.Front()
+	if elem == nil {
+		return false
+	}
+	if elem.Value.(warmContainer).Function != f.Name {
+		return false
+	}
+	if elem.Value.(warmContainer).Runtime != f.Runtime {
+		return false
+	}
+	return true
+}
+
 func ArePoolsEmptyInThisNode() bool {
 	return len(Resources.ContainerPools) == 0
 }

@@ -9,14 +9,14 @@ import (
 	"github.com/grussorusso/serverledge/internal/node"
 )
 
-var currentDataCep ReturnedOutputData
+var currentDataPcep ReturnedOutputData
 
-type CloudEdgePolicy struct{}
+type GreedyCloudEdgePolicy struct{}
 
-func (p *CloudEdgePolicy) SubmitInfos(data ReturnedOutputData) {
+func (p *GreedyCloudEdgePolicy) SubmitInfos(data ReturnedOutputData) {
 	timestamp := time.Now()
 	dataMap[timestamp] = data //adding actual data to historical data
-	currentDataCep = data
+	currentDataPcep = data
 
 	fmt.Println("------------------------------------------")
 	fmt.Println("Timestamp Key: ", timestamp)
@@ -26,32 +26,36 @@ func (p *CloudEdgePolicy) SubmitInfos(data ReturnedOutputData) {
 	fmt.Println("")
 }
 
-func (p *CloudEdgePolicy) Init() {
+func (p *GreedyCloudEdgePolicy) Init() {
 }
 
-func (p *CloudEdgePolicy) OnCompletion(_ *scheduledFcRequest) {
+func (p *GreedyCloudEdgePolicy) OnCompletion(_ *scheduledFcRequest) {
 
 }
 
-func (p *CloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
+func (p *GreedyCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 
 	availableCores := runtime.NumCPU()
 	totAvailableMem := int64(config.GetInt(config.POOL_MEMORY_MB, 1024))
 	totAvailableCPUs := config.GetFloat(config.POOL_CPUS, float64(availableCores))
-	cpuTreshold := totAvailableCPUs * (20 / 100)
-	memTreshold := totAvailableMem * (30 / 100)
+	cpuTreshold := totAvailableCPUs * (0.20)
+	memTreshold := float64(totAvailableMem) * (0.30)
 
 	fmt.Println("------------------------------------------")
 	fmt.Println("Scheduled workflow: ", r.Fc.Name)
-	fmt.Println("Avg Cold Start Time: ", currentDataCep.AvgTotalColdStartsTime)
-	fmt.Printf("Avg Fc [%s] Response Time: %f\n", r.Fc.Name, currentDataCep.AvgFcRespTime[r.Fc.Name])
+	fmt.Printf("Avg Fc [%s] Response Time: %f\n", r.Fc.Name, currentDataPcep.AvgFcRespTime[r.Fc.Name])
 	fmt.Printf("Actual Fc [%s] Response Time: %f\n", r.Fc.Name, r.ExecReport.ResponseTime)
 
 	for _, fname := range r.Fc.Workflow.GetUniqueDagFunctions() {
-		fmt.Printf("Avg Function [%s] Response Time: %f\n", fname, currentDataCep.AvgFunDurationTime[fname])
+		fmt.Printf("Avg Function [%s] Cold Start Time: %f\n", fname, currentDataPcep.AvgTotalColdStartsTime[fname])
 	}
+
 	for _, fname := range r.Fc.Workflow.GetUniqueDagFunctions() {
-		fmt.Printf("Avg Output Function [%s] Size: %f\n", fname, currentDataCep.AvgOutputFunSize[fname])
+		fmt.Printf("Avg Function [%s] Response Time: %f\n", fname, currentDataPcep.AvgFunDurationTime[fname])
+	}
+
+	for _, fname := range r.Fc.Workflow.GetUniqueDagFunctions() {
+		fmt.Printf("Avg Output Function [%s] Size: %f\n", fname, currentDataPcep.AvgOutputFunSize[fname])
 	}
 
 	fmt.Println("Available amount of CPU: ", node.Resources.AvailableCPUs)
@@ -62,26 +66,23 @@ func (p *CloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 
 	fmt.Println("")
 
-	/* Decide to execute the workflow into a cloud node if:                      *
+	/* Decide to execute the workflow to a cloud node if:                        *
 	 *	- workflow offloading is active;                                         *
+	 *  - The user specified fcMaxRespTime is less than the profilefc avg 		 *
+	 *    response time                                                          *
 	 *	- current fc Response time is greater than the 95th percentile of the    *
-	 *	  avg fc response time                                                   *
-	 *	- the amount of cpu & memory is less than a fixed threshold              *
-	 *  - the fc avg response time is less than the user specified fcMaxRespTime */
+	 *	  profiled avg fc response time;                                         *
+	 *	- the amount of cpu & memory is less than a specified threshold;         */
 	if r.CanDoFcOffloading && r.Iteration > 0 &&
-		(r.QoSMaxFcRespT > currentDataCep.AvgFcRespTime[r.Fc.Name]*0.95 ||
-			r.ExecReport.ResponseTime > currentDataCep.AvgFcRespTime[r.Fc.Name] ||
-			r.ExecReport.ResponseTime > (currentDataCep.AvgFcRespTime[r.Fc.Name]*0.95) ||
-			node.Resources.AvailableCPUs <= cpuTreshold ||
-			node.Resources.AvailableMemMB <= memTreshold) {
-
+		(node.Resources.AvailableCPUs <= cpuTreshold ||
+			float64(node.Resources.AvailableMemMB) <= memTreshold) {
 		/* if fc offloading flag is active and at least one of the previous *
 		 * performance condition are met: schedule decision -> Offload      */
 		fmt.Println("Scheduling the remaining part of the workflow on the cloud...")
 		handleCloudOffload(r)
 		return
 	} else if node.Resources.AvailableCPUs >= cpuTreshold &&
-		node.Resources.AvailableMemMB >= memTreshold {
+		float64(node.Resources.AvailableMemMB) >= memTreshold {
 		/* if fc offloading flag is NOT active and the previous performance *
 		 * condition are met: fc schedule decision -> Exec locally          */
 		fmt.Println("Scheduling locally...")

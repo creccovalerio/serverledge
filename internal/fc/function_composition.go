@@ -38,6 +38,7 @@ type FunctionComposition struct {
 
 type scheduledFcRequest struct {
 	*CompositionRequest
+	progress          *Progress
 	fcDecisionChannel chan fcSchedDecision
 	priority          float64
 }
@@ -61,10 +62,13 @@ const (
 )
 
 type ReturnedOutputData struct {
-	AvgTotalColdStartsTime map[string]float64
-	AvgFcRespTime          map[string]float64
-	AvgFunDurationTime     map[string]float64
-	AvgOutputFunSize       map[string]float64
+	AvgTotalColdStartsTime   map[string]float64
+	AvgFunDurationTime       map[string]float64
+	AvgFunRemoteDurationTime map[string]float64
+	AvgOutputFunSize         map[string]float64
+	AvgOutputFunRemoteSize   map[string]float64
+	AvgFcRespTime            map[string]float64
+	AvgFcRemoteRespTime      map[string]float64
 }
 
 type ExecutionReportId string
@@ -74,10 +78,11 @@ func CreateExecutionReportId(dagNode DagNode) ExecutionReportId {
 }
 
 type CompositionExecutionReport struct {
-	Result       map[string]interface{}
-	Reports      map[ExecutionReportId]*function.ExecutionReport
-	ResponseTime float64   // time waited by the user to get the output of the entire composition
-	Progress     *Progress `json:"-"` // skipped in Json marshaling
+	Result         map[string]interface{}
+	Reports        map[ExecutionReportId]*function.ExecutionReport
+	ResponseTime   float64   // time waited by the user to get the output of the entire composition
+	RemoteRespTime float64   // duration of the remote execution
+	Progress       *Progress `json:"-"` // skipped in Json marshaling
 }
 
 func (cer *CompositionExecutionReport) GetSingleResult() (string, error) {
@@ -343,11 +348,12 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 	progress := InitProgressRecursive(requestId, &fc.Workflow)
 
 	// initialize partial data with input, directly from the Start.Next node
-	pd := NewPartialData(requestId, fc.Workflow.Start.Next, "nil", input)
+	pd := NewPartialData(requestId, fc.Workflow.Start.Next, fc.Workflow.Start.Id, input)
 	pd.Data = input
 
 	schedFcRequest := scheduledFcRequest{
 		CompositionRequest: r,
+		progress:           progress,
 		fcDecisionChannel:  make(chan fcSchedDecision, 1)}
 
 	shouldContinue := true
@@ -375,6 +381,7 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 				return CompositionExecutionReport{Result: nil, Progress: progress}, fmt.Errorf("failed dag execution: %v", err)
 			}
 			schedFcRequest.CompositionRequest.Iteration++
+			schedFcRequest.progress = progress
 			r.ExecReport.ResponseTime = time.Since(r.Arrival).Seconds()
 		} else if fcSchedDecision.action == EXEC_REMOTE {
 			fmt.Println("EXEC REMOTE")
@@ -411,7 +418,22 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 			pd.Data = response.Result // WorkflowOffload has executed interaly the remaining part of the workflow
 			r.ExecReport.Reports = response.Reports
 			r.ExecReport.ResponseTime = time.Since(r.Arrival).Seconds()
+			r.ExecReport.RemoteRespTime = response.RemoteRespTime
 			schedFcRequest.CompositionRequest.Iteration++
+			schedFcRequest.progress = progress
+			/* metricFcRemoteRespTime is the response time without the initTime
+			* of the containers */
+			metricFcRemoteRespTime := r.ExecReport.RemoteRespTime
+			for _, funcReport := range r.ExecReport.Reports {
+				if funcReport.SchedAction == "Offloaded" {
+					metricFcRemoteRespTime -= funcReport.InitTime
+					if funcReport.FunctionName != "" {
+						utils.CreateAndRecordNewHistogramMetric("Function.RemoteDuration", "Duration of a function executed remotly", r.Ctx, funcReport.Duration, "functInvocationRemoteDuration", funcReport.FunctionName)
+						utils.CreateAndRecordNewHistogramMetric("FunctionOutput.RemoteSize", "Size of the function output executed remotly", r.Ctx, float64(len([]byte(funcReport.Result))), "functionRemoteSizeHistogram", funcReport.FunctionName)
+					}
+				}
+			}
+			utils.CreateAndRecordNewHistogramMetric("FunctionComposition.remoteRespTime", "Remote response time of a function composition", r.Ctx, metricFcRemoteRespTime, "functionCompositionInvocationRemoteRespTime", r.Fc.Name)
 		} else {
 			// drop case
 			return CompositionExecutionReport{}, node.OutOfResourcesErr
@@ -427,6 +449,9 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 	}
 
 	fmt.Println("FINAL RES: ", pd.Data)
+	fmt.Println(".......... END ..............")
+	fmt.Println("")
+
 	r.ExecReport.Result = pd.Data
 
 	return r.ExecReport, nil
@@ -436,6 +461,7 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 func (fc *FunctionComposition) InvokeFunctionCompositionOffload(r *CompositionRequest) (CompositionExecutionReport, error) {
 
 	var err error
+	var pd *PartialData
 	requestId := ReqId(r.Id())
 	// retrieve struct progress from dag
 	if telemetry.DefaultTracer != nil {
@@ -452,9 +478,19 @@ func (fc *FunctionComposition) InvokeFunctionCompositionOffload(r *CompositionRe
 		return CompositionExecutionReport{Result: nil, Progress: progress}, fmt.Errorf("failed to get next nodes from progress: %v", err)
 	}
 
-	pd, err := RetrieveSinglePartialDataFromEtcd(requestId, nextNodes[0])
-	if err != nil {
-		return CompositionExecutionReport{Result: nil, Progress: progress}, fmt.Errorf("failed to get partial data: %v", err)
+	n, ok := r.Fc.Workflow.Find(nextNodes[0])
+	if !ok {
+		return CompositionExecutionReport{Result: nil, Progress: progress}, fmt.Errorf("failed to get next nodes from progress: %v", err)
+	}
+
+	switch n.(type) {
+	case *StartNode:
+		pd = NewPartialData(requestId, fc.Workflow.Start.Next, fc.Workflow.Start.Id, r.Params)
+	default:
+		pd, err = RetrieveSinglePartialDataFromEtcd(requestId, nextNodes[0])
+		if err != nil {
+			return CompositionExecutionReport{Result: nil, Progress: progress}, fmt.Errorf("failed to get partial data: %v", err)
+		}
 	}
 
 	fmt.Println("RETRIEVED INPUT: ", pd)
@@ -661,7 +697,7 @@ func (cer *CompositionExecutionReport) String() string {
 				output = report.Output
 			}
 
-			str += fmt.Sprintf("\n\t\t%s: {ResponseTime: %f, IsWarmStart: %v, InitTime: %f, ColdStartTime: %f, OffloadLatency: %f, Duration: %f, SchedAction: %v, Output: %s, Result: %s}", id, report.ResponseTime, report.IsWarmStart, report.InitTime, report.ColdStartTime, report.OffloadLatency, report.Duration, schedAction, output, report.Result)
+			str += fmt.Sprintf("\n\t\t%s: {FunctionName: %s, ResponseTime: %f, IsWarmStart: %v, InitTime: %f, ColdStartTime: %f, OffloadLatency: %f, Duration: %f, SchedAction: %v, Output: %s, Result: %s}", id, report.FunctionName, report.ResponseTime, report.IsWarmStart, report.InitTime, report.ColdStartTime, report.OffloadLatency, report.Duration, schedAction, output, report.Result)
 			if j < len(cer.Reports)-1 {
 				str += ","
 			}
@@ -736,6 +772,11 @@ func (cer *CompositionExecutionReport) Equals(other types.Comparable) bool {
 
 		if report.SchedAction != report2.SchedAction {
 			fmt.Printf("SchedAction: report1 '%v' is different from report2 '%v'\n", report.SchedAction, report2.SchedAction)
+			fieldAllEqual = false
+		}
+
+		if report.FunctionName != report2.FunctionName {
+			fmt.Printf("FunctionName: report1 '%v' is different from report2 '%v'\n", report.FunctionName, report2.FunctionName)
 			fieldAllEqual = false
 		}
 

@@ -99,6 +99,11 @@ func (c *ChoiceNode) Exec(compRequest *CompositionRequest, params ...map[string]
 		SchedAction:    "",
 	}
 
+	if compRequest.IsOffloaded {
+		/* set to this value in order to manage the remote response time metric */
+		execReport.SchedAction = "Offloaded"
+	}
+
 	//compRequest.ExecReport.Reports.Set(CreateExecutionReportId(c), execReport)
 	compRequest.ExecReport.Reports[CreateExecutionReportId(c)] = execReport
 	return output, err

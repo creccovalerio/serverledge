@@ -14,10 +14,11 @@ type Request struct {
 	Arrival    time.Time
 	ExecReport ExecutionReport
 	RequestQoS
-	CanDoOffloading bool
-	Async           bool
-	IsInComposition bool // not currently used
-	ReturnOutput    bool
+	CanDoOffloading   bool
+	Async             bool
+	IsInComposition   bool // not currently used
+	IsInProfilingMode bool
+	ReturnOutput      bool
 }
 
 type RequestQoS struct {
@@ -27,6 +28,7 @@ type RequestQoS struct {
 
 type ExecutionReport struct {
 	Result         string
+	FunctionName   string
 	ResponseTime   float64 // time waited by the user to get the output: completion time - arrival time (offload + cold start + execution time)
 	IsWarmStart    bool
 	InitTime       float64 // time spent sleeping before initializing container

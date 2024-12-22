@@ -102,12 +102,14 @@ func RegisterTerminationHandler(r *registration.Registry, e *echo.Echo) {
 func CreateSchedulingPolicy() scheduling.Policy {
 	policyConf := config.GetString(config.SCHEDULING_POLICY, "default")
 	log.Printf("\nConfigured policy: %s", policyConf)
-	if policyConf == "cloudonly" {
-		return &scheduling.CloudOnlyPolicy{}
-	} else if policyConf == "edgecloud" {
-		return &scheduling.CloudEdgePolicy{}
+	if policyConf == "greedyedgecloud" {
+		return &scheduling.GreedyCloudEdgePolicy{}
+	} else if policyConf == "thresholdbased" {
+		return &scheduling.ThresholdCloudEdgePolicy{}
 	} else if policyConf == "edgeonly" {
-		return &scheduling.EdgePolicy{}
+		return &scheduling.EdgeOnlyPolicy{}
+	} else if policyConf == "cloudonly" {
+		return &scheduling.CloudOnlyPolicy{}
 	} else if policyConf == "custom1" {
 		return &scheduling.Custom1Policy{}
 	} else { // default, localonly
@@ -122,8 +124,18 @@ func CreateFcSchedulingPolicy() fc.FcPolicy {
 		// start periodic metrics retrieve
 		go metrics.PeriodicalMetricsRetrieveFromPrometheus()
 	}
-	if policyConf == "edgecloud" {
-		return &fc.CloudEdgePolicy{}
+	if policyConf == "greedyedgecloud" {
+		return &fc.GreedyCloudEdgePolicy{}
+	} else if policyConf == "deadlinebased" {
+		return &fc.DeadlineCloudEdgePolicy{}
+	} else if policyConf == "thresholdbased" {
+		return &fc.ThresholdCloudEdgePolicy{}
+	} else if policyConf == "dynthresholdbased" {
+		return &fc.ThresholdDynCloudEdgePolicy{}
+	} else if policyConf == "edgeonly" {
+		return &fc.EdgeOnlyPolicy{}
+	} else if policyConf == "cloudonly" {
+		return &fc.CloudOnlyPolicy{}
 	} else { // default, localonly
 		return &fc.DefaultLocalPolicy{}
 	}

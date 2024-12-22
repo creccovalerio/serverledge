@@ -6,9 +6,11 @@ import (
 )
 
 type ReturnedFunctionOutputData struct {
-	AvgTotalColdStartsTime map[string]float64
-	AvgFunDurationTime     map[string]float64
-	AvgOutputFunSize       map[string]float64
+	AvgTotalColdStartsTime   map[string]float64
+	AvgFunDurationTime       map[string]float64
+	AvgFunRemoteDurationTime map[string]float64
+	AvgOutputFunSize         map[string]float64
+	AvgOutputFunRemoteSize   map[string]float64
 }
 
 // scheduledRequest represents a Request within the scheduling subsystem

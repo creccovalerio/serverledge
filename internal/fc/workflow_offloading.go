@@ -79,12 +79,14 @@ func WorkflowOffload(r *CompositionRequest, serverUrl string, reports map[Execut
 	}
 
 	now := time.Now()
-	response.ResponseTime = now.Sub(r.Arrival).Seconds()
 	responseExecutionReport.Result = response.Result
 	responseExecutionReport.Reports = make(map[ExecutionReportId]*function.ExecutionReport)
 	for key, report := range response.Reports {
 		responseExecutionReport.Reports[ExecutionReportId(key)] = report
 	}
+
+	responseExecutionReport.ResponseTime = now.Sub(r.Arrival).Seconds()
+	responseExecutionReport.RemoteRespTime = response.ResponseTime
 
 	if telemetry.DefaultTracer != nil {
 		trace.SpanFromContext(r.Ctx).AddEvent("Process Offload Post response complete")

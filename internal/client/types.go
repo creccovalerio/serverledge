@@ -33,6 +33,7 @@ type CompositionInvocationRequest struct {
 	CanDoOffloading   bool
 	CanDoFcOffloading bool
 	Async             bool
+	IsInProfilingMode bool
 	// NextNodes       []string // DagNodeId
 	// we do not add Progress here, only the next group of node that should execute
 	// in case of choice node, we retrieve the progress for each dagNodeId and execute only the one that is not in Skipped State
@@ -47,7 +48,7 @@ type OffloadedCompositionInvocationRequest struct {
 	Params            map[string]interface{}
 	RequestQoSMap     map[string]function.RequestQoS
 	Reports           map[string]*function.ExecutionReport
-	QosMaxRespT       float64
+	QosMaxFcRespT     float64
 	CanDoOffloading   bool
 	CanDoFcOffloading bool
 	Async             bool

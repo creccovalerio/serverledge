@@ -13,6 +13,7 @@ import (
 	"github.com/grussorusso/serverledge/internal/asl"
 	"github.com/grussorusso/serverledge/internal/function"
 	"github.com/grussorusso/serverledge/internal/types"
+	"github.com/grussorusso/serverledge/utils"
 )
 
 // used to send output from parallel nodes to fan in node or to the next node
@@ -283,6 +284,11 @@ func (dag *Dag) executeChoice(progress *Progress, partialData *PartialData, choi
 	if err != nil {
 		return pd, progress, false, err
 	}
+
+	/* metric to count how many times a choice node is invoked during an fc invokation in      *
+	 * order to calculate the probability to assign to each of the branches of the choice node */
+	utils.CreateAndRecordNewCounterMetric("ChoiceNode.InvocationNo", "Count of a choice node invocations", r.Ctx, "fcChoiceNodeInvocationCounter", string(nodeId))
+
 	// executing node
 	output, err := choice.Exec(r, partialData.Data)
 	if err != nil {

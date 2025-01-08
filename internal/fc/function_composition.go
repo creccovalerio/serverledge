@@ -69,6 +69,10 @@ type ReturnedOutputData struct {
 	AvgOutputFunRemoteSize   map[string]float64
 	AvgFcRespTime            map[string]float64
 	AvgFcRemoteRespTime      map[string]float64
+	AvgFcTTransferTime       map[string]float64
+	AvgFcTReturnTime         map[string]float64
+	NoChoiceNodeInvocations  map[string]float64
+	NoBranchInvocations      map[string]float64
 }
 
 type ExecutionReportId string
@@ -82,6 +86,8 @@ type CompositionExecutionReport struct {
 	Reports        map[ExecutionReportId]*function.ExecutionReport
 	ResponseTime   float64   // time waited by the user to get the output of the entire composition
 	RemoteRespTime float64   // duration of the remote execution
+	Ttransfer      float64   // duration of request transfer in remote
+	Treturn        float64   // duration of response transfer
 	Progress       *Progress `json:"-"` // skipped in Json marshaling
 }
 
@@ -383,6 +389,8 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 			schedFcRequest.CompositionRequest.Iteration++
 			schedFcRequest.progress = progress
 			r.ExecReport.ResponseTime = time.Since(r.Arrival).Seconds()
+			r.ExecReport.Ttransfer = 0
+			r.ExecReport.Treturn = 0
 		} else if fcSchedDecision.action == EXEC_REMOTE {
 			fmt.Println("EXEC REMOTE")
 			if telemetry.DefaultTracer != nil {
@@ -419,6 +427,8 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 			r.ExecReport.Reports = response.Reports
 			r.ExecReport.ResponseTime = time.Since(r.Arrival).Seconds()
 			r.ExecReport.RemoteRespTime = response.RemoteRespTime
+			r.ExecReport.Ttransfer = response.Ttransfer
+			r.ExecReport.Treturn = response.Treturn
 			schedFcRequest.CompositionRequest.Iteration++
 			schedFcRequest.progress = progress
 			/* metricFcRemoteRespTime is the response time without the initTime
@@ -434,6 +444,8 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 				}
 			}
 			utils.CreateAndRecordNewHistogramMetric("FunctionComposition.remoteRespTime", "Remote response time of a function composition", r.Ctx, metricFcRemoteRespTime, "functionCompositionInvocationRemoteRespTime", r.Fc.Name)
+			utils.CreateAndRecordNewHistogramMetric("FunctionComposition.TTransferTime", "Duration for sending the remote execution request", r.Ctx, r.ExecReport.Ttransfer, "functionCompositionTTransferTime", r.Fc.Name)
+			utils.CreateAndRecordNewHistogramMetric("FunctionComposition.TReturnTime", "Duration for receiving the remote execution response", r.Ctx, r.ExecReport.Treturn, "functionCompositionTReturnTime", r.Fc.Name)
 		} else {
 			// drop case
 			return CompositionExecutionReport{}, node.OutOfResourcesErr

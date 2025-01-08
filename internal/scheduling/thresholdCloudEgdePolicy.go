@@ -37,6 +37,22 @@ func (p *ThresholdCloudEdgePolicy) OnArrival(r *scheduledRequest) {
 	fmt.Println("------------------------------------------------------------")
 	fmt.Println("")
 
+	if r.IsInProfilingMode {
+		/* if local profiling is active, bypass function scheduler policy  *
+		 * during the profiling in order to obtain local execution metrics */
+		containerID, err := node.AcquireWarmContainer(r.Fun)
+		if err == nil {
+			log.Printf("Using a warm container for: %v\n", r)
+			execLocally(r, containerID, true)
+			return
+		} else if handleColdStart(r) {
+			return
+		} else {
+			dropRequest(r)
+			return
+		}
+	}
+
 	if r.CanDoOffloading {
 		/* checking if the scheduled function has been already containerized (resources already allocated)*/
 		containerID, err := node.AcquireWarmContainer(r.Fun)

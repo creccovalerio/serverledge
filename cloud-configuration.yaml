@@ -1,6 +1,6 @@
 ---
 api.port: 1324
-etcd.address: 192.168.1.9:2379
+etcd.address: 192.168.1.10:2379
 
 cloud: true
 scheduler.policy: edgeonly

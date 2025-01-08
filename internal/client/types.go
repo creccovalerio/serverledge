@@ -52,6 +52,7 @@ type OffloadedCompositionInvocationRequest struct {
 	CanDoOffloading   bool
 	CanDoFcOffloading bool
 	Async             bool
+	Ttransfer         float64
 	// NextNodes       []string // DagNodeId
 	// we do not add Progress here, only the next group of node that should execute
 	// in case of choice node, we retrieve the progress for each dagNodeId and execute only the one that is not in Skipped State

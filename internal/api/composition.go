@@ -248,7 +248,7 @@ func InvokeFunctionComposition(e echo.Context) error {
 	}
 
 	if telemetry.MetricsEnabled {
-		utils.CreateAndRecordNewCounterMetric(reqId, "fcInvocationCounter", fcReq.Fc.Name)
+		utils.CreateAndRecordNewCounterMetric("FcInvocations", "Count the number of fc invocations", fcReq.Ctx, "fcInvocationCounter", fcReq.Fc.Name)
 	}
 
 	if fcReq.Async {
@@ -294,11 +294,16 @@ func InvokeFunctionComposition(e echo.Context) error {
 			Result:       fcReq.ExecReport.Result,
 			Reports:      reports,
 			ResponseTime: fcReq.ExecReport.ResponseTime,
+			Ttransfer:    fcReq.ExecReport.Ttransfer,
+			Treturn:      fcReq.ExecReport.Treturn,
 		})
 	}
 }
 
 func ExecuteOffloadedFunctionComposition(e echo.Context) error {
+
+	arrivalReqTime := time.Now()
+	receivedTime := float64(arrivalReqTime.Unix()) + float64(arrivalReqTime.Nanosecond())/1e9
 
 	// gets the command line param value for -fc (the composition name)
 	fcName := e.Param("fc")
@@ -334,6 +339,9 @@ func ExecuteOffloadedFunctionComposition(e echo.Context) error {
 		fcReq.ExecReport.Reports[fc.ExecutionReportId(key)] = report
 	}
 
+	tTransferDuration := receivedTime - fcInvocationRequest.Ttransfer
+	fmt.Println("TtransferDuration: ", tTransferDuration)
+
 	// set the parentCtx of the nested spans executed remotly
 	// Tracing
 	if telemetry.DefaultTracer != nil {
@@ -364,11 +372,16 @@ func ExecuteOffloadedFunctionComposition(e echo.Context) error {
 			reports[string(key)] = report
 		}
 
+		respStartTime := time.Now()
+		tReturnStart := float64(respStartTime.Unix()) + float64(respStartTime.Nanosecond())/1e9
+
 		return e.JSON(http.StatusOK, fc.CompositionResponse{
 			Success:      true,
 			Result:       fcReq.ExecReport.Result,
 			Reports:      reports,
 			ResponseTime: fcReq.ExecReport.ResponseTime,
+			Ttransfer:    tTransferDuration,
+			Treturn:      tReturnStart,
 		})
 	}
 }

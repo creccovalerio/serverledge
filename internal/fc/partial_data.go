@@ -279,7 +279,6 @@ func savePartialDataToEtcd(pd *PartialData) error {
 	if err != nil {
 		return fmt.Errorf("failed etcd Put partial data: %v", err)
 	}
-	fmt.Println("PD SAVED FOR: ", getPartialDataEtcdKey(pd.ReqId, pd.ForNode))
 	return nil
 }
 

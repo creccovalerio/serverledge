@@ -128,6 +128,8 @@ func CreateFcSchedulingPolicy() fc.FcPolicy {
 		return &fc.GreedyCloudEdgePolicy{}
 	} else if policyConf == "deadlinebased" {
 		return &fc.DeadlineCloudEdgePolicy{}
+	} else if policyConf == "dyndeadlinebased" {
+		return &fc.DynDeadlineCloudEdgePolicy{}
 	} else if policyConf == "thresholdbased" {
 		return &fc.ThresholdCloudEdgePolicy{}
 	} else if policyConf == "dynthresholdbased" {

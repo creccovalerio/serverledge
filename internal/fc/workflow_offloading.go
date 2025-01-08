@@ -26,11 +26,15 @@ func WorkflowOffload(r *CompositionRequest, serverUrl string, reports map[Execut
 		exe_reports[string(key)] = report
 	}
 
+	start := time.Now()
+	tTransferStart := float64(start.Unix()) + float64(start.Nanosecond())/1e9
+
 	request := client.OffloadedCompositionInvocationRequest{
 		ReqId:           r.Id(),
 		Params:          r.Params,
 		Reports:         exe_reports,
 		CanDoOffloading: false, // blocking another possible offload of the same request on the cloud node
+		Ttransfer:       tTransferStart,
 	}
 	invocationBody, err := json.Marshal(request)
 	if err != nil {
@@ -49,6 +53,9 @@ func WorkflowOffload(r *CompositionRequest, serverUrl string, reports map[Execut
 		log.Print(err)
 		return CompositionExecutionReport{}, true, err
 	}
+
+	respArrivalTime := time.Now()
+	receivedTime := float64(respArrivalTime.Unix()) + float64(respArrivalTime.Nanosecond())/1e9
 
 	if telemetry.DefaultTracer != nil {
 		trace.SpanFromContext(r.Ctx).AddEvent("Offload Post complete")
@@ -87,6 +94,15 @@ func WorkflowOffload(r *CompositionRequest, serverUrl string, reports map[Execut
 
 	responseExecutionReport.ResponseTime = now.Sub(r.Arrival).Seconds()
 	responseExecutionReport.RemoteRespTime = response.ResponseTime
+
+	tReturnDuration := receivedTime - response.Treturn
+	tTransferDuration := response.Ttransfer
+	fmt.Println("TtransferDuration: ", tTransferDuration)
+	fmt.Println("TreturnDuration: ", tReturnDuration)
+	fmt.Println("RemoteExecutionDuration: ", response.ResponseTime)
+
+	responseExecutionReport.Ttransfer = tTransferDuration
+	responseExecutionReport.Treturn = tReturnDuration
 
 	if telemetry.DefaultTracer != nil {
 		trace.SpanFromContext(r.Ctx).AddEvent("Process Offload Post response complete")

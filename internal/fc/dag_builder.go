@@ -218,10 +218,12 @@ func (c *ChoiceBranchBuilder) NextBranch(dagToChain *Dag, err1 error) *ChoiceBra
 				case *ChoiceNode:
 					c.dagBuilder.dag.addNode(n)
 					n.setBranchId(n.GetBranchId() + baseBranchNumber)
+					fmt.Println("(Choice hasNext) BRANCH ID: ", n.GetBranchId())
 					continue
 				default:
 					c.dagBuilder.dag.addNode(n)
 					n.setBranchId(n.GetBranchId() + baseBranchNumber)
+					fmt.Println("(Default hasNext) BRANCH ID: ", n.GetBranchId())
 					nextNode, _ := dagToChain.Find(n.GetNext()[0])
 					// chain the last node(s) of the input dag to the end node of the building dag
 

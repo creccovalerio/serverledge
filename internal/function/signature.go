@@ -17,6 +17,7 @@ const (
 	ARRAY_TEXT        = "ArrayText"
 	ARRAY_ARRAY_INT   = "ArrayArrayInt"
 	ARRAY_ARRAY_FLOAT = "ArrayArrayFloat"
+	ARRAY_ARRAY_TEXT  = "ArrayArrayText"
 	VOID              = "Void"
 )
 
@@ -257,6 +258,8 @@ func StringToDataType(t string) (DataTypeEnum, error) {
 		return Array[Array[Int]]{DataType: Array[Int]{DataType: Int{}}}, nil
 	case ARRAY_ARRAY_FLOAT:
 		return Array[Array[Float]]{DataType: Array[Float]{DataType: Float{}}}, nil
+	case ARRAY_ARRAY_TEXT:
+		return Array[Array[Text]]{DataType: Array[Text]{DataType: Text{}}}, nil
 	case VOID:
 		return Void{}, nil
 	default:
@@ -286,6 +289,8 @@ func datatypeToString(dataType DataTypeEnum) string {
 		return ARRAY_ARRAY_INT
 	case Array[Array[Float]]:
 		return ARRAY_ARRAY_FLOAT
+	case Array[Array[Text]]:
+		return ARRAY_ARRAY_TEXT
 	case Void:
 		return VOID
 	default:

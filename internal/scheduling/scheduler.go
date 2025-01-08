@@ -73,13 +73,9 @@ func Run(p Policy) {
 		case c = <-completions:
 			node.ReleaseContainer(c.contID, c.Fun)
 			p.OnCompletion(c.scheduledRequest)
-			fmt.Println("ON COMPLETION NODE")
 			if telemetry.MetricsEnabled {
-				fmt.Println("IN METR ON")
 				utils.CreateAndRecordNewHistogramMetric("Function.duration", "Duration of a function", c.scheduledRequest.Ctx, c.ExecReport.Duration, "functInvocationDuration", c.Fun.Name)
 				utils.CreateAndRecordNewHistogramMetric("FunctionOutput.size", "Size of the function output", c.scheduledRequest.Ctx, float64(len([]byte(c.ExecReport.Result))), "functionSizeHistogram", c.Fun.Name)
-				fmt.Println("METR SENT")
-
 			}
 		}
 	}

@@ -1,11 +1,11 @@
 ---
 api.port: 1323
-etcd.address: 192.168.1.9:2379
-cloud.server.url: "http://192.168.1.9:1324"
+etcd.address: 192.168.1.10:2379
+cloud.server.url: "http://192.168.1.10:1324"
 
 offloading: true
-scheduler.policy: greedyedgecloud
-fc_scheduler.policy: dynthresholdbased
+scheduler.policy: edgeonly
+fc_scheduler.policy: dyndeadlinebased
 container.pool.memory: 3072
 scheduler.queue.capacity: 0
 

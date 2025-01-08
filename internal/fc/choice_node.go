@@ -8,6 +8,7 @@ import (
 
 	"github.com/grussorusso/serverledge/internal/function"
 	"github.com/grussorusso/serverledge/internal/types"
+	"github.com/grussorusso/serverledge/utils"
 	"github.com/lithammer/shortuuid"
 
 	// "strconv"
@@ -16,13 +17,14 @@ import (
 
 // ChoiceNode receives one input and produces one result to one of two alternative nodes, based on condition
 type ChoiceNode struct {
-	Id           DagNodeId
-	NodeType     DagNodeType
-	BranchId     int
-	input        map[string]interface{}
-	Alternatives []DagNodeId
-	Conditions   []Condition
-	FirstMatch   int
+	Id             DagNodeId
+	NodeType       DagNodeType
+	BranchId       int
+	input          map[string]interface{}
+	Alternatives   []DagNodeId
+	AlternativesId []DagNodeId //identify an edge of a branch node into a workflow (e.g: fcName_nodeName_branchId)
+	Conditions     []Condition
+	FirstMatch     int
 }
 
 func NewChoiceNode(conds []Condition) *ChoiceNode {
@@ -79,6 +81,10 @@ func (c *ChoiceNode) Exec(compRequest *CompositionRequest, params ...map[string]
 			c.FirstMatch = i
 			// the output map should be like the input map!
 			output = params[0]
+			/* metric to count how many times a branch of a choice node is invoked during an fc invokation in *
+			 * order to calculate the probability to assign to each of the branches of the choice node        */
+			attributeValue := fmt.Sprintf("%s_branch_%d", c.GetId(), i)
+			utils.CreateAndRecordNewCounterMetric("BranchInvocations", "Count the number of invocations of a branch of a choice node", compRequest.Ctx, "fcBranchInvocationCounter", attributeValue)
 			break
 		}
 	}
@@ -115,6 +121,7 @@ func (c *ChoiceNode) AddOutput(dag *Dag, dagNode DagNodeId) error {
 		return errors.New(fmt.Sprintf("there are %d alternatives but %d Conditions", len(c.Alternatives), len(c.Conditions)))
 	}
 	c.Alternatives = append(c.Alternatives, dagNode)
+	fmt.Println("ALTs: ", c.Alternatives)
 	if len(c.Alternatives) > len(c.Conditions) {
 		return errors.New(fmt.Sprintf("there are %d alternatives but %d Conditions", len(c.Alternatives), len(c.Conditions)))
 	}

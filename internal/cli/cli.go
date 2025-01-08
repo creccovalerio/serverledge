@@ -518,7 +518,7 @@ func invokeFunctionComposition(cmd *cobra.Command, args []string) {
 	utils.PrintJsonResponse(resp.Body)
 }
 
-func invokeFunctionCompositionProfiling(isInRemoteProfiling bool) {
+func invokeFunctionCompositionProfiling(isInProfiling bool) {
 	if len(compName) < 1 {
 		fmt.Printf("Invalid composition name.\n")
 		os.Exit(1)
@@ -560,7 +560,7 @@ func invokeFunctionCompositionProfiling(isInRemoteProfiling bool) {
 		QosMaxFcRespT:     qosMaxFcRespT,
 		CanDoFcOffloading: canDoFunctionCompositionOffloading,
 		Async:             asyncInvocation,
-		IsInProfilingMode: isInRemoteProfiling}
+		IsInProfilingMode: isInProfiling}
 	invocationBody, err := json.Marshal(request)
 	if err != nil {
 		os.Exit(1)
@@ -588,7 +588,7 @@ func executeProfiling(paramsList []string, fcOffload bool, isInProfiling bool) {
 func createComposition(cmd *cobra.Command, args []string) {
 
 	var allParams [][]string
-	var nProfilingRounds = 1
+	var nProfilingRounds = 30
 
 	if compName == "" || jsonSrc == "" {
 		cmd.Help()

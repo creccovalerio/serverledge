@@ -23,15 +23,15 @@ func CreateAndRecordNewHistogramMetric(metricName string, metricDesc string, con
 		metric.WithAttributes(attribute.String(attributeKey, attributeValue)))
 }
 
-func CreateAndRecordNewCounterMetric(reqId string, attributeKey string, attributeValue string) {
+func CreateAndRecordNewCounterMetric(metricName string, metricDesc string, ctx context.Context, attributeKey string, attributeValue string) {
 	meter := otel.Meter(os.Getenv("OTEL_SERVICE_NAME"))
-	m, err := telemetry.NewCounterMetric(meter)
+	m, err := telemetry.NewCounterMetric(meter, metricName, metricDesc)
 	if err != nil {
 		panic(err)
 	}
 
 	m.RequestCounter.Add(
-		context.WithValue(context.Background(), "ReqId", reqId),
+		ctx,
 		1,
 		metric.WithAttributes(attribute.String(attributeKey, attributeValue)),
 	)

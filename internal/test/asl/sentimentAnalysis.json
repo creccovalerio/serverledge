@@ -1,0 +1,92 @@
+{
+    "Comment": "A simple state machine with 1 task node",
+    "StartAt": "FirstState",
+    "States": {
+       "FirstState": {
+        "Comment": "The first task",
+        "Type": "Task",
+        "Resource": "extractReviews",
+        "Next": "SecondState"
+       },
+       "SecondState": {
+        "Comment": "The first task",
+        "Type": "Task",
+        "Resource": "preprocessReviews",
+        "Next": "ThirdState"
+       },
+       "ThirdState": {
+        "Comment": "The first task",
+        "Type": "Task",
+        "Resource": "tokenizeReviews",
+        "Next": "FourthState"
+       },
+       "FourthState": {
+        "Comment": "The first task",
+        "Type": "Task",
+        "Resource": "analyzeSentiment",
+        "Next": "ChoiceState"
+       },
+       
+       "ChoiceState": {
+        "Type": "Choice",
+        "Choices": [
+         {
+            "And": [
+              {
+                "Variable": "$.input",
+                "IsPresent": true
+              },
+              {
+                "Variable": "$.input",
+                "NumericGreaterThanEquals": 0.75
+              },
+              {
+                "Variable": "$.input",
+                "NumericLessThan": 1.0
+              }
+            ],
+            "Next": "HighRating"
+          },
+          {
+            "And": [
+              {
+                "Variable": "$.input",
+                "IsPresent": true
+              },
+              {
+                "Variable": "$.input",
+                "NumericGreaterThanEquals": 0.5
+              },
+              {
+                "Variable": "$.input",
+                "NumericLessThan": 0.75
+              }
+            ],
+            "Next": "MediumRating"
+          }
+        ],
+        "Default": "DefaultState"
+      },
+      "HighRating": {
+        "Comment": "Lang=Python",
+        "Type": "Task",
+        "Resource": "showRating",
+        "End": true
+      },
+
+      "MediumRating": {
+        "Comment": "Lang=Python",
+        "Type": "Task",
+        "Resource": "showRating",
+        "End": true
+      },
+
+      "DefaultState": {
+        "Comment": "Lang=Python",
+        "Type": "Task",
+        "Resource": "showRating",
+        "End": true
+      }
+
+    }
+  }

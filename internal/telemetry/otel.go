@@ -201,12 +201,12 @@ type metrics struct {
 	RequestCounter stdmtr.Int64Counter
 }
 
-func NewCounterMetric(meter stdmtr.Meter) (*metrics, error) {
+func NewCounterMetric(meter stdmtr.Meter, name string, desc string) (*metrics, error) {
 
 	var m metrics
 	newMetric, err := meter.Int64Counter(
-		"InvokeFC.request",
-		stdmtr.WithDescription("Invocation of a fc request."),
+		name,
+		stdmtr.WithDescription(desc),
 		stdmtr.WithUnit("{requests}"),
 	)
 	if err != nil {

@@ -7,7 +7,19 @@ def smoothSumMatrix(n):
     and compute the sum of the elements on the main diagonal.
     """
     try:
-        if n >= 5000:
+        if n >= 1000 and n <= 5000:
+            reduced_size = n - 650
+            matrix = [[i + j for j in range(reduced_size)] for i in range(reduced_size)]
+            diagonal_sum = sum(matrix[i][i] for i in range(reduced_size))
+            del matrix
+            return diagonal_sum
+        elif n > 5000 and n <= 30000:
+            reduced_size = n // 500
+            matrix = [[i + j for j in range(reduced_size)] for i in range(reduced_size)]
+            diagonal_sum = sum(matrix[i][i] for i in range(reduced_size))
+            del matrix
+            return diagonal_sum
+        elif n > 30000:
             reduced_size = n // 5000
             matrix = [[i + j for j in range(reduced_size)] for i in range(reduced_size)]
             diagonal_sum = sum(matrix[i][i] for i in range(reduced_size))

@@ -87,7 +87,7 @@
       "NextMatrixState2": {
         "Comment": "Lang=Python",
         "Type": "Task",
-        "Resource": "sumMatrix",
+        "Resource": "smoothSumMatrix",
         "Next": "NextMatrixState3"
       },
 

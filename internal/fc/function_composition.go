@@ -380,7 +380,6 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 		}
 
 		if fcSchedDecision.action == EXEC_LOCAL {
-			fmt.Println("EXEC LOCAL")
 			pd, progress, shouldContinue, err = fc.Workflow.Execute(r, pd, progress)
 			if err != nil {
 				progress.Print()
@@ -392,7 +391,6 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 			r.ExecReport.Ttransfer = 0
 			r.ExecReport.Treturn = 0
 		} else if fcSchedDecision.action == EXEC_REMOTE {
-			fmt.Println("EXEC REMOTE")
 			if telemetry.DefaultTracer != nil {
 				trace.SpanFromContext(r.Ctx).AddEvent("Save pd & progress on etcd start")
 			}
@@ -405,8 +403,6 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 			if err != nil {
 				return CompositionExecutionReport{}, err
 			}
-
-			fmt.Println("INFO SAVED: ", pd)
 
 			if telemetry.DefaultTracer != nil {
 				trace.SpanFromContext(r.Ctx).AddEvent("Save pd & progress on etcd complete")
@@ -422,7 +418,6 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 				return CompositionExecutionReport{}, err
 			}
 
-			fmt.Println("REMOTE RES: ", response.Result)
 			pd.Data = response.Result // WorkflowOffload has executed interaly the remaining part of the workflow
 			r.ExecReport.Reports = response.Reports
 			r.ExecReport.ResponseTime = time.Since(r.Arrival).Seconds()
@@ -459,10 +454,6 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 		 * associated with a specific requestId */
 		reqIds = append(reqIds, requestId)
 	}
-
-	fmt.Println("FINAL RES: ", pd.Data)
-	fmt.Println(".......... END ..............")
-	fmt.Println("")
 
 	r.ExecReport.Result = pd.Data
 
@@ -505,15 +496,12 @@ func (fc *FunctionComposition) InvokeFunctionCompositionOffload(r *CompositionRe
 		}
 	}
 
-	fmt.Println("RETRIEVED INPUT: ", pd)
-
 	if telemetry.DefaultTracer != nil {
 		trace.SpanFromContext(r.Ctx).AddEvent("Retrieve pd & progress from etcd complete")
 	}
 
 	shouldContinue := true
 	for shouldContinue {
-		fmt.Println("EXEC REMOTE LOCAL")
 		// executing dag
 		pd, progress, shouldContinue, err = fc.Workflow.Execute(r, pd, progress)
 		if err != nil {
@@ -524,7 +512,6 @@ func (fc *FunctionComposition) InvokeFunctionCompositionOffload(r *CompositionRe
 	}
 
 	r.ExecReport.Result = pd.Data
-	fmt.Println("REMOTE RES: ", pd.Data)
 	return r.ExecReport, nil
 }
 

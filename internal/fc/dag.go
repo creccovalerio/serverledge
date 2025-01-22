@@ -601,15 +601,12 @@ func (dag *Dag) Execute(r *CompositionRequest, data *PartialData, progress *Prog
 
 		switch node := n.(type) {
 		case *SimpleNode:
-			fmt.Println("EXEC SIMPLE")
 			pd, progress, shouldContinue, err = dag.executeSimple(progress, data, node, r)
 		case *ChoiceNode:
-			fmt.Println("EXEC CHOICE")
 			pd, progress, shouldContinue, err = dag.executeChoice(progress, data, node, r)
 		case *FanInNode:
 			pd, progress, shouldContinue, err = dag.executeFanIn(progress, data, node, r)
 		case *StartNode:
-			fmt.Println("EXEC START")
 			pd, progress, shouldContinue, err = dag.executeStart(progress, data, node, r)
 		case *FanOutNode:
 			pd, progress, shouldContinue, err = dag.executeFanOut(progress, data, node, r)
@@ -618,13 +615,10 @@ func (dag *Dag) Execute(r *CompositionRequest, data *PartialData, progress *Prog
 		case *WaitNode:
 			pd, progress, shouldContinue, err = commonExec(dag, progress, data, node, r)
 		case *FailNode:
-			fmt.Println("EXEC FAIL")
 			pd, progress, shouldContinue, err = dag.executeFailNode(progress, data, node, r) // TODO: use commonExec
 		case *SucceedNode:
-			fmt.Println("EXEC SUCCEED")
 			pd, progress, shouldContinue, err = dag.executeSucceedNode(progress, data, node, r) // TODO: use commonExec
 		case *EndNode:
-			fmt.Println("EXEC END")
 			pd, progress, shouldContinue, err = dag.executeEnd(progress, data, node, r)
 		}
 		if err != nil {

@@ -126,6 +126,8 @@ func CreateFcSchedulingPolicy() fc.FcPolicy {
 	}
 	if policyConf == "greedyedgecloud" {
 		return &fc.GreedyCloudEdgePolicy{}
+	} else if policyConf == "dyngreedyedgecloud" {
+		return &fc.DynGreedyCloudEdgePolicy{}
 	} else if policyConf == "deadlinebased" {
 		return &fc.DeadlineCloudEdgePolicy{}
 	} else if policyConf == "dyndeadlinebased" {

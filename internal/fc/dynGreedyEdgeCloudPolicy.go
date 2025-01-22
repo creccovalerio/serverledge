@@ -9,14 +9,14 @@ import (
 	"github.com/grussorusso/serverledge/internal/node"
 )
 
-var currentDataGcep ReturnedOutputData
+var currentDataDgcep ReturnedOutputData
 
-type GreedyCloudEdgePolicy struct{}
+type DynGreedyCloudEdgePolicy struct{}
 
-func (p *GreedyCloudEdgePolicy) SubmitInfos(data ReturnedOutputData) {
+func (p *DynGreedyCloudEdgePolicy) SubmitInfos(data ReturnedOutputData) {
 	timestamp := time.Now()
 	dataMap[timestamp] = data //adding actual data to historical data
-	currentDataGcep = data
+	currentDataDgcep = data
 
 	fmt.Println("------------------------------------------")
 	fmt.Println("Timestamp Key: ", timestamp)
@@ -27,13 +27,13 @@ func (p *GreedyCloudEdgePolicy) SubmitInfos(data ReturnedOutputData) {
 	fmt.Println("")
 }
 
-func (p *GreedyCloudEdgePolicy) Init() {
+func (p *DynGreedyCloudEdgePolicy) Init() {
 }
 
-func (p *GreedyCloudEdgePolicy) OnCompletion(_ *scheduledFcRequest) {
+func (p *DynGreedyCloudEdgePolicy) OnCompletion(_ *scheduledFcRequest) {
 }
 
-func (p *GreedyCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
+func (p *DynGreedyCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 
 	var localRespTime float64 = 0.0
 	var remoteRespTime float64 = 0.0
@@ -47,7 +47,7 @@ func (p *GreedyCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 	fmt.Println("Scheduled workflow: ", r.Fc.Name)
 
 	for _, fname := range r.Fc.Workflow.GetUniqueDagFunctions() {
-		fmt.Printf("Avg Function [%s] Response Time: %f\n", fname, currentDataGcep.AvgFunDurationTime[fname])
+		fmt.Printf("Avg Function [%s] Response Time: %f\n", fname, currentDataDgcep.AvgFunDurationTime[fname])
 	}
 
 	fmt.Println("Available amount of CPU: ", node.Resources.AvailableCPUs)
@@ -73,50 +73,46 @@ func (p *GreedyCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 		}
 	}
 
-	tTransfer := currentDataGcep.AvgFcTTransferTime[r.Fc.Name]
-	tReturn := currentDataGcep.AvgFcTReturnTime[r.Fc.Name]
-
-	/* compute time estimations only for the first step of the workflow acting as a static policy */
-	if r.Iteration == 0 {
-		currentNodes, err := findCurrentNode(r)
-		if err == nil {
-			if len(currentNodes) > 1 {
-				/* handling case of parallels nodes */
-				var localParallelRespTime []float64
-				var remoteParallelRespTime []float64
-				/* cycle to find the parallel node with the max (local & remote) resp time */
-				for i := range currentNodes {
-					fmt.Println("**************************************  Start estimation from node: ", currentNodes[i])
-					estimatedLocalResidualRespTime, estimatedRemoteResidualRespTime = computeResidualLocalAndRemoteExecutionRespTime(r, currentNodes[i], localRespTime, remoteRespTime, currentDataGcep)
-					fmt.Println("**************************************  End estimation")
-					localParallelRespTime = append(localParallelRespTime, estimatedLocalResidualRespTime)
-					remoteParallelRespTime = append(remoteParallelRespTime, estimatedRemoteResidualRespTime)
-					fmt.Println("**************************************  Lists: ", localParallelRespTime, remoteParallelRespTime)
-
-				}
-				/* find the max (local&remote) resp time to pass to policy */
-				estimatedLocalResidualRespTime = findMaxRespTime(localParallelRespTime)
-				estimatedRemoteResidualRespTime = findMaxRespTime(remoteParallelRespTime)
-				fmt.Println("**************************************  Estimated Times: ", estimatedLocalResidualRespTime, estimatedRemoteResidualRespTime)
-
-			} else {
-				/* handling all the other kind of nodes */
-				fmt.Println("**************************************  Start estimation from node: ", currentNodes[0])
-				estimatedLocalResidualRespTime, estimatedRemoteResidualRespTime = computeResidualLocalAndRemoteExecutionRespTime(r, currentNodes[0], localRespTime, remoteRespTime, currentDataGcep)
+	tTransfer := currentDataDgcep.AvgFcTTransferTime[r.Fc.Name]
+	tReturn := currentDataDgcep.AvgFcTReturnTime[r.Fc.Name]
+	currentNodes, err := findCurrentNode(r)
+	if err == nil {
+		if len(currentNodes) > 1 {
+			/* handling case of parallels nodes */
+			var localParallelRespTime []float64
+			var remoteParallelRespTime []float64
+			/* cycle to find the parallel node with the max (local & remote) resp time */
+			for i := range currentNodes {
+				fmt.Println("**************************************  Start estimation from node: ", currentNodes[i])
+				estimatedLocalResidualRespTime, estimatedRemoteResidualRespTime = computeResidualLocalAndRemoteExecutionRespTime(r, currentNodes[i], localRespTime, remoteRespTime, currentDataDgcep)
 				fmt.Println("**************************************  End estimation")
-				fmt.Println("**************************************  Estimated Times: ", estimatedLocalResidualRespTime, estimatedRemoteResidualRespTime)
+				localParallelRespTime = append(localParallelRespTime, estimatedLocalResidualRespTime)
+				remoteParallelRespTime = append(remoteParallelRespTime, estimatedRemoteResidualRespTime)
+				fmt.Println("**************************************  Lists: ", localParallelRespTime, remoteParallelRespTime)
+
 			}
+			/* find the max (local&remote) resp time to pass to policy */
+			estimatedLocalResidualRespTime = findMaxRespTime(localParallelRespTime)
+			estimatedRemoteResidualRespTime = findMaxRespTime(remoteParallelRespTime)
+			fmt.Println("**************************************  Estimated Times: ", estimatedLocalResidualRespTime, estimatedRemoteResidualRespTime)
 
 		} else {
-			return
+			/* handling all the other kind of nodes */
+			fmt.Println("**************************************  Start estimation from node: ", currentNodes[0])
+			estimatedLocalResidualRespTime, estimatedRemoteResidualRespTime = computeResidualLocalAndRemoteExecutionRespTime(r, currentNodes[0], localRespTime, remoteRespTime, currentDataDgcep)
+			fmt.Println("**************************************  End estimation")
+			fmt.Println("**************************************  Estimated Times: ", estimatedLocalResidualRespTime, estimatedRemoteResidualRespTime)
 		}
+
+	} else {
+		return
 	}
 
 	/* Decide to execute the workflow to a cloud node if:                *
 	 *	- workflow offloading is active;                                 *
 	 *  - remote execution (which includes Ttransfer&Treturn) lasts less *
 	 *  - than the local execution                                       */
-	if r.CanDoFcOffloading && !r.IsInProfilingMode && r.Iteration == 0 &&
+	if r.CanDoFcOffloading && !r.IsInProfilingMode &&
 		(tTransfer+estimatedRemoteResidualRespTime+tReturn <= estimatedLocalResidualRespTime) {
 		/* if fc offloading flag is active and the previous            *
 		 * performance condition are met: schedule decision -> Offload */

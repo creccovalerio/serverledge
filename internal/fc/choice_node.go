@@ -121,7 +121,6 @@ func (c *ChoiceNode) AddOutput(dag *Dag, dagNode DagNodeId) error {
 		return errors.New(fmt.Sprintf("there are %d alternatives but %d Conditions", len(c.Alternatives), len(c.Conditions)))
 	}
 	c.Alternatives = append(c.Alternatives, dagNode)
-	fmt.Println("ALTs: ", c.Alternatives)
 	if len(c.Alternatives) > len(c.Conditions) {
 		return errors.New(fmt.Sprintf("there are %d alternatives but %d Conditions", len(c.Alternatives), len(c.Conditions)))
 	}

@@ -155,7 +155,7 @@ func PeriodicalMetricsRetrieveFromPrometheus() {
 		{"NoChoiceNodeInvocations", "sum by (fcChoiceNodeInvocationCounter) (ChoiceNode_InvocationNo_total)"},
 		{"NoBranchInvocations", "sum by (fcBranchInvocationCounter) (BranchInvocations_total)"},
 	}
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -174,6 +174,9 @@ func PeriodicalMetricsRetrieveFromPrometheus() {
 			fcPolicyConf := config.GetString(config.SCHEDULING_FC_POLICY, "default")
 			if fcPolicyConf == "greedyedgecloud" {
 				cep := fc.GreedyCloudEdgePolicy{}
+				cep.SubmitInfos(dataToSend)
+			} else if fcPolicyConf == "dyngreedyedgecloud" {
+				cep := fc.DynGreedyCloudEdgePolicy{}
 				cep.SubmitInfos(dataToSend)
 			} else if fcPolicyConf == "deadlinebased" {
 				cep := fc.DeadlineCloudEdgePolicy{}

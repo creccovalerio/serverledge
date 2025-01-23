@@ -17,7 +17,7 @@
                     },
                     {
                         "Variable": "$.input",
-                        "NumericLessThan": 8
+                        "NumericLessThan": 9
                     }
                 ],
                 "Next": "FirstMatchState"
@@ -44,7 +44,7 @@
                     },
                     {
                         "Variable": "$.input",
-                        "NumericLessThan": 43
+                        "NumericLessThan": 57
                     }
                 ],
                 "Next": "NextPrimeState"

@@ -7,20 +7,26 @@ def smoothSumMatrix(n):
     and compute the sum of the elements on the main diagonal.
     """
     try:
-        if n >= 500 and n < 1000:
-            reduced_size = n - 400
+        if n >= 200 and n < 500:
+            reduced_size = n - 150
+            matrix = [[i + j for j in range(reduced_size)] for i in range(reduced_size)]
+            diagonal_sum = sum(matrix[i][i] for i in range(reduced_size))
+            del matrix
+            return diagonal_sum
+        elif n >= 500 and n < 1000:
+            reduced_size = n - 550
             matrix = [[i + j for j in range(reduced_size)] for i in range(reduced_size)]
             diagonal_sum = sum(matrix[i][i] for i in range(reduced_size))
             del matrix
             return diagonal_sum
         elif n >= 1000 and n <= 2500:
-            reduced_size = n - 1100
+            reduced_size = n - 1250
             matrix = [[i + j for j in range(reduced_size)] for i in range(reduced_size)]
             diagonal_sum = sum(matrix[i][i] for i in range(reduced_size))
             del matrix
             return diagonal_sum
         elif n >= 2500 and n <= 5000:
-            reduced_size = n - 2000
+            reduced_size = n - 2200
             matrix = [[i + j for j in range(reduced_size)] for i in range(reduced_size)]
             diagonal_sum = sum(matrix[i][i] for i in range(reduced_size))
             del matrix
@@ -38,18 +44,12 @@ def smoothSumMatrix(n):
             del matrix
             return diagonal_sum
         elif n >= 120000 and n < 250000:
-            reduced_size = n // 450
+            reduced_size = n // 600
             matrix = [[i + j for j in range(reduced_size)] for i in range(reduced_size)]
             diagonal_sum = sum(matrix[i][i] for i in range(reduced_size))
             del matrix
             return diagonal_sum
-        elif n >= 250000 and n < 500000:
-            reduced_size = n // 650
-            matrix = [[i + j for j in range(reduced_size)] for i in range(reduced_size)]
-            diagonal_sum = sum(matrix[i][i] for i in range(reduced_size))
-            del matrix
-            return diagonal_sum
-        elif n >= 500000:
+        elif n >= 250000:
             reduced_size = n // 1000
             matrix = [[i + j for j in range(reduced_size)] for i in range(reduced_size)]
             diagonal_sum = sum(matrix[i][i] for i in range(reduced_size))

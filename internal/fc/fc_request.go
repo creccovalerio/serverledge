@@ -52,12 +52,14 @@ func (r *CompositionRequest) String() string {
 }
 
 type CompositionResponse struct {
-	Success      bool
-	Result       map[string]interface{}
-	Reports      map[string]*function.ExecutionReport
-	ResponseTime float64 // time waited by the user to get the output of the entire composition (in seconds)
-	Ttransfer    float64 // time waited by the user to send an offload request to a remote node (in seconds)
-	Treturn      float64 // time waited by the user to get the output of an offload request sent to a remote node (in seconds)
+	Success              bool
+	Result               map[string]interface{}
+	Reports              map[string]*function.ExecutionReport
+	ResponseTime         float64 // time waited by the user to get the output of the entire composition (in seconds)
+	Ttransfer            float64 // time waited by the user to send an offload request to a remote node (in seconds)
+	Treturn              float64 // time waited by the user to get the output of an offload request sent to a remote node (in seconds)
+	AvailableMemMB       int64
+	AvailableRemoteMemMB int64
 }
 
 type CompositionAsyncResponse struct {

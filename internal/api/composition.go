@@ -290,12 +290,14 @@ func InvokeFunctionComposition(e echo.Context) error {
 		}
 
 		return e.JSON(http.StatusOK, fc.CompositionResponse{
-			Success:      true,
-			Result:       fcReq.ExecReport.Result,
-			Reports:      reports,
-			ResponseTime: fcReq.ExecReport.ResponseTime,
-			Ttransfer:    fcReq.ExecReport.Ttransfer,
-			Treturn:      fcReq.ExecReport.Treturn,
+			Success:              true,
+			Result:               fcReq.ExecReport.Result,
+			Reports:              reports,
+			ResponseTime:         fcReq.ExecReport.ResponseTime,
+			Ttransfer:            fcReq.ExecReport.Ttransfer,
+			Treturn:              fcReq.ExecReport.Treturn,
+			AvailableMemMB:       node.Resources.AvailableMemMB,
+			AvailableRemoteMemMB: fcReq.ExecReport.AvailableRemoteMemMB,
 		})
 	}
 }
@@ -376,12 +378,13 @@ func ExecuteOffloadedFunctionComposition(e echo.Context) error {
 		tReturnStart := float64(respStartTime.Unix()) + float64(respStartTime.Nanosecond())/1e9
 
 		return e.JSON(http.StatusOK, fc.CompositionResponse{
-			Success:      true,
-			Result:       fcReq.ExecReport.Result,
-			Reports:      reports,
-			ResponseTime: fcReq.ExecReport.ResponseTime,
-			Ttransfer:    tTransferDuration,
-			Treturn:      tReturnStart,
+			Success:              true,
+			Result:               fcReq.ExecReport.Result,
+			Reports:              reports,
+			ResponseTime:         fcReq.ExecReport.ResponseTime,
+			Ttransfer:            tTransferDuration,
+			Treturn:              tReturnStart,
+			AvailableRemoteMemMB: node.Resources.AvailableMemMB,
 		})
 	}
 }

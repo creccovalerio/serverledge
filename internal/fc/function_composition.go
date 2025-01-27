@@ -82,13 +82,14 @@ func CreateExecutionReportId(dagNode DagNode) ExecutionReportId {
 }
 
 type CompositionExecutionReport struct {
-	Result         map[string]interface{}
-	Reports        map[ExecutionReportId]*function.ExecutionReport
-	ResponseTime   float64   // time waited by the user to get the output of the entire composition
-	RemoteRespTime float64   // duration of the remote execution
-	Ttransfer      float64   // duration of request transfer in remote
-	Treturn        float64   // duration of response transfer
-	Progress       *Progress `json:"-"` // skipped in Json marshaling
+	Result               map[string]interface{}
+	Reports              map[ExecutionReportId]*function.ExecutionReport
+	ResponseTime         float64 // time waited by the user to get the output of the entire composition
+	RemoteRespTime       float64 // duration of the remote execution
+	Ttransfer            float64 // duration of request transfer in remote
+	Treturn              float64 // duration of response transfer
+	AvailableRemoteMemMB int64
+	Progress             *Progress `json:"-"` // skipped in Json marshaling
 }
 
 func (cer *CompositionExecutionReport) GetSingleResult() (string, error) {
@@ -424,6 +425,7 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 			r.ExecReport.RemoteRespTime = response.RemoteRespTime
 			r.ExecReport.Ttransfer = response.Ttransfer
 			r.ExecReport.Treturn = response.Treturn
+			r.ExecReport.AvailableRemoteMemMB = response.AvailableRemoteMemMB
 			schedFcRequest.CompositionRequest.Iteration++
 			schedFcRequest.progress = progress
 			/* metricFcRemoteRespTime is the response time without the initTime

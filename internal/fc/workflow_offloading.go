@@ -80,12 +80,14 @@ func WorkflowOffload(r *CompositionRequest, serverUrl string, reports map[Execut
 			fmt.Printf("Error while closing offload response body: %s\n", err)
 		}
 	}(resp.Body)
+
+	now := time.Now()
+
 	body, _ := io.ReadAll(resp.Body)
 	if err = json.Unmarshal(body, &response); err != nil {
 		return CompositionExecutionReport{}, true, err
 	}
 
-	now := time.Now()
 	responseExecutionReport.Result = response.Result
 	responseExecutionReport.Reports = make(map[ExecutionReportId]*function.ExecutionReport)
 	for key, report := range response.Reports {
@@ -103,6 +105,9 @@ func WorkflowOffload(r *CompositionRequest, serverUrl string, reports map[Execut
 
 	responseExecutionReport.Ttransfer = tTransferDuration
 	responseExecutionReport.Treturn = tReturnDuration
+	responseExecutionReport.AvailableRemoteMemMB = response.AvailableRemoteMemMB
+
+	fmt.Println("AvailableRemoteMemMB: ", responseExecutionReport.AvailableRemoteMemMB)
 
 	if telemetry.DefaultTracer != nil {
 		trace.SpanFromContext(r.Ctx).AddEvent("Process Offload Post response complete")

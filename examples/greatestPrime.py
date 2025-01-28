@@ -14,5 +14,5 @@ def greaterPrime(n):
                 return False
         return True
 
-    primes = [i for i in range(2, n) if is_prime(i)]
-    return primes[-1] if primes else -1 
+    primes = [i for i in range(2, n*10) if is_prime(i)]
+    return primes[-1]//10 if primes else -1 

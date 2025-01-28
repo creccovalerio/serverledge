@@ -155,7 +155,7 @@ func PeriodicalMetricsRetrieveFromPrometheus() {
 		{"NoChoiceNodeInvocations", "sum by (fcChoiceNodeInvocationCounter) (ChoiceNode_InvocationNo_total)"},
 		{"NoBranchInvocations", "sum by (fcBranchInvocationCounter) (BranchInvocations_total)"},
 	}
-	ticker := time.NewTicker(3 * time.Second)
+	ticker := time.NewTicker(1500 * time.Millisecond)
 	defer ticker.Stop()
 
 	for {

@@ -53,10 +53,12 @@ func Execute(contID container.ContainerID, r *scheduledRequest, fromComposition 
 		return fmt.Errorf("execution failed in container - can't read the logs: %v", errLogs)
 	}
 
+	r.ExecReport.FunctionName = r.Fun.Name
 	r.ExecReport.Result = response.Result
 	r.ExecReport.Output = response.Output
 	r.ExecReport.Duration = time.Now().Sub(t0).Seconds() - invocationWait.Seconds()
 	r.ExecReport.ResponseTime = time.Now().Sub(r.Arrival).Seconds()
+	r.ExecReport.SchedAction = "Execute_local"
 
 	// initializing containers may require invocation retries, adding
 	// latency

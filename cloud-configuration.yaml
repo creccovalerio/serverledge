@@ -7,7 +7,7 @@ scheduler.policy: edgeonly
 fc_scheduler.policy: edgeonly
 container.pool.memory: 9216
 
-tracing.enabled: false
+tracing.enabled: true
 #tracing.outfile: ./tracing/tracing.json
 
 metrics.enabled: false

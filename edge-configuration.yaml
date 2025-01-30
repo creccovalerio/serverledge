@@ -9,7 +9,7 @@ fc_scheduler.policy: greedyedgecloud
 container.pool.memory: 3072
 scheduler.queue.capacity: 0
 
-tracing.enabled: false
+tracing.enabled: true
 #tracing.outfile: ./tracing/tracing.json
 
 metrics.enabled: true

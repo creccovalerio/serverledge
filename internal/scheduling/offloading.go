@@ -15,8 +15,6 @@ import (
 	"github.com/grussorusso/serverledge/internal/registration"
 )
 
-const SCHED_ACTION_OFFLOAD = "O"
-
 func pickEdgeNodeForOffloading(r *scheduledRequest) (url string) {
 	nearbyServersMap := registration.Reg.NearbyServersMap
 	if nearbyServersMap == nil {
@@ -77,8 +75,9 @@ func Offload(r *function.Request, serverUrl string) error {
 
 	// TODO: check how this is used in the QoSAware policy
 	// It was originially computed as "report.Arrival - sendingTime"
+	r.ExecReport.FunctionName = r.Fun.Name
 	r.ExecReport.OffloadLatency = now.Sub(sendingTime).Seconds() - r.ExecReport.Duration - r.ExecReport.InitTime
-	r.ExecReport.SchedAction = SCHED_ACTION_OFFLOAD
+	r.ExecReport.SchedAction = "Offloaded"
 
 	return nil
 }

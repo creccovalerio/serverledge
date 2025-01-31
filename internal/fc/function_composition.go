@@ -255,7 +255,7 @@ func (fc *FunctionComposition) SaveToEtcd() error {
 
 func DeletePdAndProgressFromEtcd() {
 	var err error
-	ticker := time.NewTicker(100 * time.Second)
+	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {

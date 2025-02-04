@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/grussorusso/serverledge/internal/telemetry"
@@ -35,4 +36,21 @@ func CreateAndRecordNewCounterMetric(metricName string, metricDesc string, ctx c
 		1,
 		metric.WithAttributes(attribute.String(attributeKey, attributeValue)),
 	)
+}
+
+func FormatParams(params map[string]interface{}) string {
+	if len(params) == 0 {
+		return "empty"
+	}
+
+	result := ""
+	first := true
+	for _, v := range params {
+		if !first {
+			result += ", "
+		}
+		result += fmt.Sprintf("%v", v)
+		first = false
+	}
+	return result
 }

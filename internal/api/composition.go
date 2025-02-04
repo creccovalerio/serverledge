@@ -269,6 +269,8 @@ func InvokeFunctionComposition(e echo.Context) error {
 			}
 		}
 		utils.CreateAndRecordNewHistogramMetric("FunctionComposition.respTime", "Response time of a function composition", fcReq.Ctx, metricFcRespTime, "functionCompositionInvocationRespTime", fcReq.Fc.Name)
+		attributeValue := fmt.Sprintf("%s_%s", fcReq.Fc.Name, utils.FormatParams(fcReq.Params))
+		utils.CreateAndRecordNewHistogramMetric("FunctionComposition.respTimePerInput", "Response time of a function composition per input", fcReq.Ctx, metricFcRespTime, "functionCompositionInvocationRespTimePerInput", attributeValue)
 	}
 
 	if errors.Is(err, node.OutOfResourcesErr) {

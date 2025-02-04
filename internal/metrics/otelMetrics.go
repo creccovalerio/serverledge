@@ -64,6 +64,10 @@ func queryPrometheus(wg *sync.WaitGroup, queryInfos queryInfos, api v1.API, ctx 
 		dataToSend.AvgFcRespTime = outputMap
 	case "AvgFcRemoteRespTime":
 		dataToSend.AvgFcRemoteRespTime = outputMap
+	case "AvgFcRespTimePerInput":
+		dataToSend.AvgFcRespTimePerInput = outputMap
+	case "AvgFcRemoteRespTimePerInput":
+		dataToSend.AvgFcRemoteRespTimePerInput = outputMap
 	case "AvgFcTTranferTime":
 		dataToSend.AvgFcTTransferTime = outputMap
 	case "AvgFcTReturnTime":
@@ -150,11 +154,14 @@ func PeriodicalMetricsRetrieveFromPrometheus() {
 		{"AvgRemoteOutputFunSize", "sum(FunctionOutput_RemoteSize_seconds_sum) by (functionRemoteSizeHistogram) / sum(FunctionOutput_RemoteSize_seconds_count) by (functionRemoteSizeHistogram)"},
 		{"AvgFcRespTime", "sum(FunctionComposition_respTime_seconds_sum) by (functionCompositionInvocationRespTime) / clamp_min(sum(FunctionComposition_respTime_seconds_count) by (functionCompositionInvocationRespTime), 1)"},
 		{"AvgFcRemoteRespTime", "sum(FunctionComposition_remoteRespTime_seconds_sum) by (functionCompositionInvocationRemoteRespTime) / clamp_min(sum(FunctionComposition_remoteRespTime_seconds_count) by (functionCompositionInvocationRemoteRespTime), 1)"},
+		{"AvgFcRespTimePerInput", "sum(FunctionComposition_respTimePerInput_seconds_sum) by (functionCompositionInvocationRespTimePerInput) / clamp_min(sum(FunctionComposition_respTimePerInput_seconds_count) by (functionCompositionInvocationRespTimePerInput), 1)"},
+		{"AvgFcRemoteRespTimePerInput", "sum(FunctionComposition_remoteRespTimePerInput_seconds_sum) by (functionCompositionInvocationRemoteRespTimePerInput) / clamp_min(sum(FunctionComposition_remoteRespTimePerInput_seconds_count) by (functionCompositionInvocationRemoteRespTimePerInput), 1)"},
 		{"AvgFcTTranferTime", "sum(FunctionComposition_TTransferTime_seconds_sum) by (functionCompositionTTransferTime) / clamp_min(sum(FunctionComposition_TTransferTime_seconds_count) by (functionCompositionTTransferTime), 1)"},
 		{"AvgFcTReturnTime", "sum(FunctionComposition_TReturnTime_seconds_sum) by (functionCompositionTReturnTime) / clamp_min(sum(FunctionComposition_TReturnTime_seconds_count) by (functionCompositionTReturnTime), 1)"},
 		{"NoChoiceNodeInvocations", "sum by (fcChoiceNodeInvocationCounter) (ChoiceNode_InvocationNo_total)"},
 		{"NoBranchInvocations", "sum by (fcBranchInvocationCounter) (BranchInvocations_total)"},
 	}
+
 	ticker := time.NewTicker(1500 * time.Millisecond)
 	defer ticker.Stop()
 

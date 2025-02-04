@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/grussorusso/serverledge/internal/node"
+	"github.com/grussorusso/serverledge/utils"
 )
 
 var currentDataDcep ReturnedOutputData
@@ -34,10 +35,12 @@ func (p *DeadlineCloudEdgePolicy) OnCompletion(_ *scheduledFcRequest) {
 
 func (p *DeadlineCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 
+	key := fmt.Sprintf("%s_%s", r.Fc.Name, utils.FormatParams(r.Params))
 	fmt.Println("------------------------------------------------------------")
 	fmt.Printf("Scheduled workflow: %s with policy: DEADLINE_CLOUD/EDGE\n", r.Fc.Name)
 	fmt.Println("------------------------------------------------------------")
 	fmt.Printf("Avg Fc [%s] Response Time: %f\n", r.Fc.Name, currentDataDcep.AvgFcRespTime[r.Fc.Name])
+	fmt.Printf("Avg Fc [%s] Response Time Per Input %s: %f\n", r.Fc.Name, utils.FormatParams(r.Params), currentDataDcep.AvgFcRespTimePerInput[key])
 	fmt.Printf("Max RespTime admitted for the Fc [%s]: %f\n", r.Fc.Name, r.QoSMaxFcRespT)
 	fmt.Println("------------------------------------------------------------")
 
@@ -63,7 +66,7 @@ func (p *DeadlineCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 	 *  - The user specified fcMaxRespTime is less than the *
 	 *    profiled fc avg response time                     */
 	if r.CanDoFcOffloading && !r.IsInProfilingMode &&
-		(r.QoSMaxFcRespT > 0 && r.QoSMaxFcRespT <= currentDataDcep.AvgFcRespTime[r.Fc.Name]) {
+		(r.QoSMaxFcRespT > 0 && r.QoSMaxFcRespT <= currentDataDcep.AvgFcRespTimePerInput[key]) {
 		/* if fc offloading flag is active and the user specified FcMaxRespTime *
 		 * is smaller than the AvgFcRespTime: schedule decision -> Offload      */
 		fmt.Println("Scheduling the remaining part of the workflow on the cloud...")

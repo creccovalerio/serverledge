@@ -62,17 +62,19 @@ const (
 )
 
 type ReturnedOutputData struct {
-	AvgTotalColdStartsTime   map[string]float64
-	AvgFunDurationTime       map[string]float64
-	AvgFunRemoteDurationTime map[string]float64
-	AvgOutputFunSize         map[string]float64
-	AvgOutputFunRemoteSize   map[string]float64
-	AvgFcRespTime            map[string]float64
-	AvgFcRemoteRespTime      map[string]float64
-	AvgFcTTransferTime       map[string]float64
-	AvgFcTReturnTime         map[string]float64
-	NoChoiceNodeInvocations  map[string]float64
-	NoBranchInvocations      map[string]float64
+	AvgTotalColdStartsTime      map[string]float64
+	AvgFunDurationTime          map[string]float64
+	AvgFunRemoteDurationTime    map[string]float64
+	AvgOutputFunSize            map[string]float64
+	AvgOutputFunRemoteSize      map[string]float64
+	AvgFcRespTime               map[string]float64
+	AvgFcRemoteRespTime         map[string]float64
+	AvgFcRespTimePerInput       map[string]float64
+	AvgFcRemoteRespTimePerInput map[string]float64
+	AvgFcTTransferTime          map[string]float64
+	AvgFcTReturnTime            map[string]float64
+	NoChoiceNodeInvocations     map[string]float64
+	NoBranchInvocations         map[string]float64
 }
 
 type ExecutionReportId string
@@ -441,6 +443,8 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 				}
 			}
 			utils.CreateAndRecordNewHistogramMetric("FunctionComposition.remoteRespTime", "Remote response time of a function composition", r.Ctx, metricFcRemoteRespTime, "functionCompositionInvocationRemoteRespTime", r.Fc.Name)
+			attributeValue := fmt.Sprintf("%s_%s", r.Fc.Name, utils.FormatParams(r.Params))
+			utils.CreateAndRecordNewHistogramMetric("FunctionComposition.remoteRespTimePerInput", "Remote response time of a function composition Per Input", r.Ctx, metricFcRemoteRespTime, "functionCompositionInvocationRemoteRespTimePerInput", attributeValue)
 			utils.CreateAndRecordNewHistogramMetric("FunctionComposition.TTransferTime", "Duration for sending the remote execution request", r.Ctx, r.ExecReport.Ttransfer, "functionCompositionTTransferTime", r.Fc.Name)
 			utils.CreateAndRecordNewHistogramMetric("FunctionComposition.TReturnTime", "Duration for receiving the remote execution response", r.Ctx, r.ExecReport.Treturn, "functionCompositionTReturnTime", r.Fc.Name)
 		} else {

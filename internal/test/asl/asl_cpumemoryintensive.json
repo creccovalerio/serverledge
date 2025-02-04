@@ -44,7 +44,7 @@
                     },
                     {
                         "Variable": "$.input",
-                        "NumericLessThan": 57
+                        "NumericLessThan": 2000
                     }
                 ],
                 "Next": "NextPrimeState"

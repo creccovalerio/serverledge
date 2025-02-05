@@ -95,7 +95,6 @@ func WorkflowOffload(r *CompositionRequest, serverUrl string, reports map[Execut
 	}
 
 	responseExecutionReport.ResponseTime = now.Sub(r.Arrival).Seconds()
-	responseExecutionReport.RemoteRespTime = response.ResponseTime
 
 	tReturnDuration := receivedTime - response.Treturn
 	tTransferDuration := response.Ttransfer

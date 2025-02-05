@@ -68,7 +68,7 @@ func (p *ThresholdCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 	/* Decide to execute the workflow to a cloud node if:                        *
 	 *	- workflow offloading is active;                                         *                                         *
 	 *	- the amount of cpu & memory is less than a specified threshold;         */
-	if r.CanDoFcOffloading && !r.IsInProfilingMode {
+	if r.CanDoFcOffloading && !r.IsInProfilingMode && r.Iteration == 0 {
 		for _, fun := range r.Fc.Functions {
 			/* checking if the resources have been already allocated for the functions of the current workflow */
 			created := node.HasWarmContainers(fun)

@@ -87,7 +87,6 @@ type CompositionExecutionReport struct {
 	Result               map[string]interface{}
 	Reports              map[ExecutionReportId]*function.ExecutionReport
 	ResponseTime         float64 // time waited by the user to get the output of the entire composition
-	RemoteRespTime       float64 // duration of the remote execution
 	Ttransfer            float64 // duration of request transfer in remote
 	Treturn              float64 // duration of response transfer
 	AvailableRemoteMemMB int64
@@ -348,7 +347,7 @@ func handleExecuteLocal(r *scheduledFcRequest) {
 func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecutionReport, error) {
 
 	var err error
-	var areInfoSaved = false
+	var offloadOccurred = false
 	var response CompositionExecutionReport
 	requestId := ReqId(r.Id())
 	input := r.Params
@@ -413,7 +412,7 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 
 			/* flag to use in order to execute DeleteProgress and DeleteAllPartialData only if
 			 * progress and partial data have been stored in etcd during workflow offloading */
-			areInfoSaved = true
+			offloadOccurred = true
 
 			// preparing workflow offloading request
 			response, shouldContinue, err = WorkflowOffload(r, fcSchedDecision.remoteHost, r.ExecReport.Reports)
@@ -424,7 +423,6 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 			pd.Data = response.Result // WorkflowOffload has executed interaly the remaining part of the workflow
 			r.ExecReport.Reports = response.Reports
 			r.ExecReport.ResponseTime = time.Since(r.Arrival).Seconds()
-			r.ExecReport.RemoteRespTime = response.RemoteRespTime
 			r.ExecReport.Ttransfer = response.Ttransfer
 			r.ExecReport.Treturn = response.Treturn
 			r.ExecReport.AvailableRemoteMemMB = response.AvailableRemoteMemMB
@@ -432,14 +430,12 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 			schedFcRequest.progress = progress
 			/* metricFcRemoteRespTime is the response time without the initTime
 			* of the containers */
-			metricFcRemoteRespTime := r.ExecReport.RemoteRespTime
+			metricFcRemoteRespTime := r.ExecReport.ResponseTime
 			for _, funcReport := range r.ExecReport.Reports {
-				if funcReport.SchedAction == "Offloaded" {
-					metricFcRemoteRespTime -= funcReport.InitTime
-					if funcReport.FunctionName != "" {
-						utils.CreateAndRecordNewHistogramMetric("Function.RemoteDuration", "Duration of a function executed remotly", r.Ctx, funcReport.Duration, "functInvocationRemoteDuration", funcReport.FunctionName)
-						utils.CreateAndRecordNewHistogramMetric("FunctionOutput.RemoteSize", "Size of the function output executed remotly", r.Ctx, float64(len([]byte(funcReport.Result))), "functionRemoteSizeHistogram", funcReport.FunctionName)
-					}
+				metricFcRemoteRespTime -= funcReport.InitTime
+				if funcReport.FunctionName != "" {
+					utils.CreateAndRecordNewHistogramMetric("Function.RemoteDuration", "Duration of a function executed remotly", r.Ctx, funcReport.Duration, "functInvocationRemoteDuration", funcReport.FunctionName)
+					utils.CreateAndRecordNewHistogramMetric("FunctionOutput.RemoteSize", "Size of the function output executed remotly", r.Ctx, float64(len([]byte(funcReport.Result))), "functionRemoteSizeHistogram", funcReport.FunctionName)
 				}
 			}
 			utils.CreateAndRecordNewHistogramMetric("FunctionComposition.remoteRespTime", "Remote response time of a function composition", r.Ctx, metricFcRemoteRespTime, "functionCompositionInvocationRemoteRespTime", r.Fc.Name)
@@ -454,11 +450,25 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 
 	}
 
-	if areInfoSaved {
+	if offloadOccurred {
 		/* saving requestIds of offloaded requests in order to pass them
 		 * to the goroutine to do the periodic delete of pd & progress
 		 * associated with a specific requestId */
 		reqIds = append(reqIds, requestId)
+	} else {
+		if telemetry.MetricsEnabled {
+			/* metricFcRespTime is the response time without the initTime
+			 * of the containers */
+			metricFcRespTime := r.ExecReport.ResponseTime
+			for _, funcReport := range r.ExecReport.Reports {
+				if funcReport.InitTime != 0 {
+					metricFcRespTime -= funcReport.InitTime
+				}
+			}
+			utils.CreateAndRecordNewHistogramMetric("FunctionComposition.respTime", "Response time of a function composition", r.Ctx, metricFcRespTime, "functionCompositionInvocationRespTime", r.Fc.Name)
+			attributeValue := fmt.Sprintf("%s_%s", r.Fc.Name, utils.FormatParams(r.Params))
+			utils.CreateAndRecordNewHistogramMetric("FunctionComposition.respTimePerInput", "Response time of a function composition per input", r.Ctx, metricFcRespTime, "functionCompositionInvocationRespTimePerInput", attributeValue)
+		}
 	}
 
 	r.ExecReport.Result = pd.Data

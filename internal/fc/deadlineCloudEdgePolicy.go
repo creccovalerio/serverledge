@@ -65,7 +65,7 @@ func (p *DeadlineCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 	 *	- workflow offloading is active;                    *
 	 *  - The user specified fcMaxRespTime is less than the *
 	 *    profiled fc avg response time                     */
-	if r.CanDoFcOffloading && !r.IsInProfilingMode &&
+	if r.CanDoFcOffloading && !r.IsInProfilingMode && r.Iteration == 0 &&
 		(r.QoSMaxFcRespT > 0 && r.QoSMaxFcRespT <= currentDataDcep.AvgFcRespTimePerInput[key]) {
 		/* if fc offloading flag is active and the user specified FcMaxRespTime *
 		 * is smaller than the AvgFcRespTime: schedule decision -> Offload      */

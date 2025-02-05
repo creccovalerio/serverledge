@@ -258,21 +258,6 @@ func InvokeFunctionComposition(e echo.Context) error {
 
 	// sync execution
 	err = fc_scheduling.SubmitCompositionRequest(fcReq)
-
-	if telemetry.MetricsEnabled {
-		/* metricFcRespTime is the response time without the initTime
-		 * of the containers */
-		metricFcRespTime := fcReq.ExecReport.ResponseTime
-		for _, funcReport := range fcReq.ExecReport.Reports {
-			if funcReport.InitTime != 0 {
-				metricFcRespTime -= funcReport.InitTime
-			}
-		}
-		utils.CreateAndRecordNewHistogramMetric("FunctionComposition.respTime", "Response time of a function composition", fcReq.Ctx, metricFcRespTime, "functionCompositionInvocationRespTime", fcReq.Fc.Name)
-		attributeValue := fmt.Sprintf("%s_%s", fcReq.Fc.Name, utils.FormatParams(fcReq.Params))
-		utils.CreateAndRecordNewHistogramMetric("FunctionComposition.respTimePerInput", "Response time of a function composition per input", fcReq.Ctx, metricFcRespTime, "functionCompositionInvocationRespTimePerInput", attributeValue)
-	}
-
 	if errors.Is(err, node.OutOfResourcesErr) {
 		return e.String(http.StatusTooManyRequests, "")
 	} else if err != nil {

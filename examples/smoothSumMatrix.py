@@ -7,26 +7,26 @@ def smoothSumMatrix(n):
     and compute the sum of the elements on the main diagonal.
     """
     try:
-        if n >= 200 and n < 600:
+        if n >= 200 and n < 500:
             reduced_size = n - 150
             matrix = [[i + j for j in range(reduced_size)] for i in range(reduced_size)]
             diagonal_sum = sum(matrix[i][i] for i in range(reduced_size))
             del matrix
             return diagonal_sum
-        elif n >= 600 and n < 1200:
+        elif n >= 500 and n < 1000:
             reduced_size = n - 550
             matrix = [[i + j for j in range(reduced_size)] for i in range(reduced_size)]
             diagonal_sum = sum(matrix[i][i] for i in range(reduced_size))
             del matrix
             return diagonal_sum
-        elif n >= 1200 and n <= 2500:
-            reduced_size = n - 1100
+        elif n >= 1000 and n <= 2500:
+            reduced_size = n - 1250
             matrix = [[i + j for j in range(reduced_size)] for i in range(reduced_size)]
             diagonal_sum = sum(matrix[i][i] for i in range(reduced_size))
             del matrix
             return diagonal_sum
         elif n >= 2500 and n <= 5000:
-            reduced_size = n - 1970
+            reduced_size = n - 2200
             matrix = [[i + j for j in range(reduced_size)] for i in range(reduced_size)]
             diagonal_sum = sum(matrix[i][i] for i in range(reduced_size))
             del matrix

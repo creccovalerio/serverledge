@@ -68,7 +68,7 @@ func (p *ThresholdCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 	/* Decide to execute the workflow to a cloud node if:                        *
 	 *	- workflow offloading is active;                                         *                                         *
 	 *	- the amount of cpu & memory is less than a specified threshold;         */
-	if r.CanDoFcOffloading && !r.IsInProfilingMode {
+	if r.CanDoFcOffloading && !r.IsInProfilingMode && r.Iteration == 0 {
 		for _, fun := range r.Fc.Functions {
 			/* checking if the resources have been already allocated for the functions of the current workflow */
 			created := node.HasWarmContainers(fun)
@@ -87,8 +87,8 @@ func (p *ThresholdCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 		fmt.Printf("There are warm containers for: %v\n", r)
 		handleExecuteLocal(r)
 		return
-	} else if node.Resources.AvailableCPUs >= cpuTreshold &&
-		float64(node.Resources.AvailableMemMB) >= memTreshold {
+	} else if node.Resources.AvailableCPUs >= totAvailableCPUs*0.05 &&
+		float64(node.Resources.AvailableMemMB) >= float64(totAvailableMem)*0.05 {
 		/* if fc offloading flag is NOT active and the previous performance *
 		 * condition are met: fc schedule decision -> Exec locally          */
 		fmt.Println("Scheduling locally...")

@@ -2,8 +2,10 @@ package fc
 
 import (
 	"fmt"
+	"runtime"
 	"time"
 
+	"github.com/grussorusso/serverledge/internal/config"
 	"github.com/grussorusso/serverledge/internal/node"
 	"github.com/grussorusso/serverledge/utils"
 )
@@ -34,6 +36,10 @@ func (p *DeadlineCloudEdgePolicy) OnCompletion(_ *scheduledFcRequest) {
 }
 
 func (p *DeadlineCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
+
+	availableCores := runtime.NumCPU()
+	totAvailableMem := int64(config.GetInt(config.POOL_MEMORY_MB, 1024))
+	totAvailableCPUs := config.GetFloat(config.POOL_CPUS, float64(availableCores))
 
 	key := fmt.Sprintf("%s_%s", r.Fc.Name, utils.FormatParams(r.Params))
 	fmt.Println("------------------------------------------------------------")
@@ -72,8 +78,8 @@ func (p *DeadlineCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 		fmt.Println("Scheduling the remaining part of the workflow on the cloud...")
 		handleCloudOffload(r)
 		return
-	} else if node.Resources.AvailableCPUs >= 0 &&
-		float64(node.Resources.AvailableMemMB) >= 0 {
+	} else if node.Resources.AvailableCPUs >= totAvailableCPUs*0.05 &&
+		float64(node.Resources.AvailableMemMB) >= float64(totAvailableMem)*0.05 {
 		/* if fc offloading flag is NOT active and there are enough *
 		 * resuorces: fc schedule decision -> Exec locally          */
 		fmt.Println("Scheduling locally...")

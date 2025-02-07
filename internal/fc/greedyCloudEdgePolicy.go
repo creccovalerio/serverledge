@@ -123,8 +123,8 @@ func (p *GreedyCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 		fmt.Println("Scheduling the remaining part of the workflow on the cloud...")
 		handleCloudOffload(r)
 		return
-	} else if node.Resources.AvailableCPUs >= 0 &&
-		float64(node.Resources.AvailableMemMB) >= 0 {
+	} else if node.Resources.AvailableCPUs >= totAvailableCPUs*0.05 &&
+		float64(node.Resources.AvailableMemMB) >= float64(totAvailableMem)*0.05 {
 		/* if fc offloading flag is NOT active and the previous performance *
 		 * conditions are met: fc schedule decision -> Exec locally         */
 		fmt.Println("Scheduling locally...")

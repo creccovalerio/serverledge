@@ -101,8 +101,8 @@ func (p *ThresholdDynCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 		fmt.Printf("There are warm containers for: %v\n", r)
 		handleExecuteLocal(r)
 		return
-	} else if node.Resources.AvailableCPUs >= cpuTreshold &&
-		float64(node.Resources.AvailableMemMB) >= memTreshold {
+	} else if node.Resources.AvailableCPUs >= totAvailableCPUs*0.05 &&
+		float64(node.Resources.AvailableMemMB) >= float64(totAvailableMem)*0.05 {
 		/* if fc offloading flag is NOT active and the previous performance *
 		 * condition are met: fc schedule decision -> Exec locally          */
 		fmt.Println("Scheduling locally...")

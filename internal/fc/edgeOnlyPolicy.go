@@ -63,8 +63,8 @@ func (p *EdgeOnlyPolicy) OnArrival(r *scheduledFcRequest) {
 	}
 
 	if !r.IsInProfilingMode &&
-		(node.Resources.AvailableCPUs > 0 &&
-			float64(node.Resources.AvailableMemMB) > 0) {
+		(node.Resources.AvailableCPUs > totAvailableCPUs*0.05 &&
+			float64(node.Resources.AvailableMemMB) > float64(totAvailableMem)*0.05) {
 		/* if fc offloading flag is NOT active and there are enough *
 		 * resources: fc schedule decision -> Exec locally          */
 		fmt.Println("Scheduling locally...")

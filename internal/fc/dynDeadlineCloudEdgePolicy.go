@@ -73,7 +73,7 @@ func (p *DynDeadlineCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 	 *  - The current Fc response time (at the nth iteration of the dag) *
 	 *  - is less than the profiled fc avg response time                 */
 	if r.CanDoFcOffloading && !r.IsInProfilingMode &&
-		(r.ExecReport.ResponseTime > currentDataDdcep.AvgFcRespTimePerInput[key]*0.95) {
+		(r.QoSMaxFcRespT > 0 && r.QoSMaxFcRespT <= currentDataDcep.AvgFcRespTimePerInput[key]) {
 		/* if fc offloading flag is active and the user specified FcMaxRespTime *
 		 * is smaller than the AvgFcRespTime: schedule decision -> Offload      */
 		fmt.Println("Scheduling the remaining part of the workflow on the cloud...")

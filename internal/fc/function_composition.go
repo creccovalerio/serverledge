@@ -69,6 +69,7 @@ type ReturnedOutputData struct {
 	AvgOutputFunRemoteSize      map[string]float64
 	AvgFcRespTime               map[string]float64
 	AvgFcRemoteRespTime         map[string]float64
+	AvgSavingInfosTime          map[string]float64
 	AvgFcRespTimePerInput       map[string]float64
 	AvgFcRemoteRespTimePerInput map[string]float64
 	AvgFcTTransferTime          map[string]float64
@@ -397,6 +398,8 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 				trace.SpanFromContext(r.Ctx).AddEvent("Save pd & progress on etcd start")
 			}
 
+			startSaving := time.Now()
+
 			err := savePartialDataToEtcd(pd)
 			if err != nil {
 				return CompositionExecutionReport{}, err
@@ -405,6 +408,11 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 			if err != nil {
 				return CompositionExecutionReport{}, err
 			}
+
+			endSaving := time.Since(startSaving).Seconds()
+			fmt.Println("SAVING DURATION: ", endSaving)
+
+			utils.CreateAndRecordNewHistogramMetric("FunctionComposition.SavingInfosDuration", "Save Pd & Progress on etcd duration", r.Ctx, endSaving, "functionCompositionSavingInfoDuration", r.Fc.Name)
 
 			if telemetry.DefaultTracer != nil {
 				trace.SpanFromContext(r.Ctx).AddEvent("Save pd & progress on etcd complete")

@@ -75,6 +75,7 @@ func (p *GreedyCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 
 	tTransfer := currentDataGcep.AvgFcTTransferTime[r.Fc.Name]
 	tReturn := currentDataGcep.AvgFcTReturnTime[r.Fc.Name]
+	tSaving := currentDataGcep.AvgSavingInfosTime[r.Fc.Name]
 
 	/* compute time estimations only for the first step of the workflow acting as a static policy */
 	if r.Iteration == 0 {
@@ -91,7 +92,7 @@ func (p *GreedyCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 					fmt.Println("**************************************  End estimation")
 					localParallelRespTime = append(localParallelRespTime, estimatedLocalResidualRespTime)
 					remoteParallelRespTime = append(remoteParallelRespTime, estimatedRemoteResidualRespTime)
-					fmt.Println("**************************************  Lists: ", localParallelRespTime, remoteParallelRespTime)
+					fmt.Println("**************************************  Lists: ", localParallelRespTime, remoteParallelRespTime, tTransfer, tReturn)
 
 				}
 				/* find the max (local&remote) resp time to pass to policy */
@@ -104,7 +105,7 @@ func (p *GreedyCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 				fmt.Println("**************************************  Start estimation from node: ", currentNodes[0])
 				estimatedLocalResidualRespTime, estimatedRemoteResidualRespTime = computeResidualLocalAndRemoteExecutionRespTime(r, currentNodes[0], localRespTime, remoteRespTime, currentDataGcep)
 				fmt.Println("**************************************  End estimation")
-				fmt.Println("**************************************  Estimated Times: ", estimatedLocalResidualRespTime, estimatedRemoteResidualRespTime)
+				fmt.Println("**************************************  Estimated Times: ", estimatedLocalResidualRespTime, estimatedRemoteResidualRespTime, tTransfer, tReturn)
 			}
 
 		} else {
@@ -112,12 +113,12 @@ func (p *GreedyCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 		}
 	}
 
-	/* Decide to execute the workflow to a cloud node if:                *
-	 *	- workflow offloading is active;                                 *
-	 *  - remote execution (which includes Ttransfer&Treturn) lasts less *
-	 *  - than the local execution                                       */
+	/* Decide to execute the workflow to a cloud node if:                  *
+	 *  - workflow offloading is active;                                   *
+	 *  - remote execution (which includes Ttransfer&Treturn) ends before  *
+	 *  - than the local execution                                         */
 	if r.CanDoFcOffloading && !r.IsInProfilingMode && r.Iteration == 0 &&
-		(tTransfer+estimatedRemoteResidualRespTime+tReturn <= estimatedLocalResidualRespTime) {
+		(tSaving+tTransfer+estimatedRemoteResidualRespTime+tReturn <= estimatedLocalResidualRespTime) {
 		/* if fc offloading flag is active and the previous            *
 		 * performance condition are met: schedule decision -> Offload */
 		fmt.Println("Scheduling the remaining part of the workflow on the cloud...")

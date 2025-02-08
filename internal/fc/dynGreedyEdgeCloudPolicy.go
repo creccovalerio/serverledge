@@ -75,6 +75,8 @@ func (p *DynGreedyCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 
 	tTransfer := currentDataDgcep.AvgFcTTransferTime[r.Fc.Name]
 	tReturn := currentDataDgcep.AvgFcTReturnTime[r.Fc.Name]
+	tSaving := currentDataDgcep.AvgSavingInfosTime[r.Fc.Name]
+
 	currentNodes, err := findCurrentNode(r)
 	if err == nil {
 		if len(currentNodes) > 1 {
@@ -113,7 +115,7 @@ func (p *DynGreedyCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 	 *  - remote execution (which includes Ttransfer&Treturn) lasts less *
 	 *  - than the local execution                                       */
 	if r.CanDoFcOffloading && !r.IsInProfilingMode &&
-		(tTransfer+estimatedRemoteResidualRespTime+tReturn <= estimatedLocalResidualRespTime) {
+		(tSaving+tTransfer+estimatedRemoteResidualRespTime+tReturn <= estimatedLocalResidualRespTime) {
 		/* if fc offloading flag is active and the previous            *
 		 * performance condition are met: schedule decision -> Offload */
 		fmt.Println("Scheduling the remaining part of the workflow on the cloud...")

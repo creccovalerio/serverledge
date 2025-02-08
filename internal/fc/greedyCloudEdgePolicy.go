@@ -98,7 +98,7 @@ func (p *GreedyCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 				/* find the max (local&remote) resp time to pass to policy */
 				estimatedLocalResidualRespTime = findMaxRespTime(localParallelRespTime)
 				estimatedRemoteResidualRespTime = findMaxRespTime(remoteParallelRespTime)
-				fmt.Println("**************************************  Estimated Times: ", estimatedLocalResidualRespTime, estimatedRemoteResidualRespTime)
+				fmt.Println("**************************************  Estimated Times: ", estimatedLocalResidualRespTime, estimatedRemoteResidualRespTime, tTransfer, tReturn, tSaving)
 
 			} else {
 				/* handling all the other kind of nodes */

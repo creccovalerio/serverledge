@@ -344,6 +344,43 @@ func handleExecuteLocal(r *scheduledFcRequest) {
 	handleLocal(r)
 }
 
+// Save PartialData & Progress on etcd with a single access
+func saveDataToEtcd(pd *PartialData, p *Progress) error {
+	// save in ETCD
+	cli, err := utils.GetEtcdClient()
+	if err != nil {
+		return err
+	}
+	ctx := context.TODO()
+
+	// marshal the partialdatas object into json
+	payloadPartialData, err := json.Marshal(pd)
+	if err != nil {
+		return fmt.Errorf("could not marshal partialData: %v", err)
+	}
+	// marshal the progress object into json
+	payloadProgress, err := json.Marshal(p)
+	if err != nil {
+		return fmt.Errorf("could not marshal progress: %v", err)
+	}
+	// saves the json object into etcd
+	keyPartialData := getPartialDataEtcdKey(pd.ReqId, pd.ForNode)
+	pdEtcdMutex.Lock()
+	defer pdEtcdMutex.Unlock()
+	_, err = cli.Put(ctx, keyPartialData, string(payloadPartialData))
+	if err != nil {
+		return fmt.Errorf("failed etcd Put partial data: %v", err)
+	}
+	keyProgress := getProgressEtcdKey(p.ReqId)
+	progressMutexEtcd.Lock()
+	defer progressMutexEtcd.Unlock()
+	_, err = cli.Put(ctx, keyProgress, string(payloadProgress))
+	if err != nil {
+		return fmt.Errorf("failed etcd Put: %v", err)
+	}
+	return nil
+}
+
 // Invoke schedules each function of the composition and invokes them
 func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecutionReport, error) {
 
@@ -400,14 +437,7 @@ func (fc *FunctionComposition) Invoke(r *CompositionRequest) (CompositionExecuti
 
 			startSaving := time.Now()
 
-			err := savePartialDataToEtcd(pd)
-			if err != nil {
-				return CompositionExecutionReport{}, err
-			}
-			err = saveProgressToEtcd(progress)
-			if err != nil {
-				return CompositionExecutionReport{}, err
-			}
+			saveDataToEtcd(pd, progress)
 
 			endSaving := time.Since(startSaving).Seconds()
 			fmt.Println("SAVING DURATION: ", endSaving)

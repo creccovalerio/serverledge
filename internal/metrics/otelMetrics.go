@@ -20,8 +20,8 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
-var dataToSend fc.ReturnedOutputData
-var dataFuncToSend scheduling.ReturnedFunctionOutputData
+var dataToSend fc.ReturnedQueryMetrics
+var dataFuncToSend scheduling.ReturnedFunctionQueryMetrics
 
 // Struct to represent query with its id
 type queryInfos struct {
@@ -66,10 +66,6 @@ func queryPrometheus(wg *sync.WaitGroup, queryInfos queryInfos, api v1.API, ctx 
 		dataToSend.AvgFcRemoteRespTime = outputMap
 	case "AvgSavingInfosTime":
 		dataToSend.AvgSavingInfosTime = outputMap
-	case "AvgFcRespTimePerInput":
-		dataToSend.AvgFcRespTimePerInput = outputMap
-	case "AvgFcRemoteRespTimePerInput":
-		dataToSend.AvgFcRemoteRespTimePerInput = outputMap
 	case "AvgFcTTranferTime":
 		dataToSend.AvgFcTTransferTime = outputMap
 	case "AvgFcTReturnTime":
@@ -157,8 +153,6 @@ func PeriodicalMetricsRetrieveFromPrometheus() {
 		{"AvgFcRespTime", "sum(FunctionComposition_respTime_seconds_sum) by (functionCompositionInvocationRespTime) / clamp_min(sum(FunctionComposition_respTime_seconds_count) by (functionCompositionInvocationRespTime), 1)"},
 		{"AvgFcRemoteRespTime", "sum(FunctionComposition_remoteRespTime_seconds_sum) by (functionCompositionInvocationRemoteRespTime) / clamp_min(sum(FunctionComposition_remoteRespTime_seconds_count) by (functionCompositionInvocationRemoteRespTime), 1)"},
 		{"AvgSavingInfosTime", "sum(FunctionComposition_SavingInfosDuration_seconds_sum) by (functionCompositionSavingInfoDuration) / clamp_min(sum(FunctionComposition_SavingInfosDuration_seconds_count) by (functionCompositionSavingInfoDuration), 1)"},
-		{"AvgFcRespTimePerInput", "sum(FunctionComposition_respTimePerInput_seconds_sum) by (functionCompositionInvocationRespTimePerInput) / clamp_min(sum(FunctionComposition_respTimePerInput_seconds_count) by (functionCompositionInvocationRespTimePerInput), 1)"},
-		{"AvgFcRemoteRespTimePerInput", "sum(FunctionComposition_remoteRespTimePerInput_seconds_sum) by (functionCompositionInvocationRemoteRespTimePerInput) / clamp_min(sum(FunctionComposition_remoteRespTimePerInput_seconds_count) by (functionCompositionInvocationRemoteRespTimePerInput), 1)"},
 		{"AvgFcTTranferTime", "sum(FunctionComposition_TTransferTime_seconds_sum) by (functionCompositionTTransferTime) / clamp_min(sum(FunctionComposition_TTransferTime_seconds_count) by (functionCompositionTTransferTime), 1)"},
 		{"AvgFcTReturnTime", "sum(FunctionComposition_TReturnTime_seconds_sum) by (functionCompositionTReturnTime) / clamp_min(sum(FunctionComposition_TReturnTime_seconds_count) by (functionCompositionTReturnTime), 1)"},
 		{"NoChoiceNodeInvocations", "sum by (fcChoiceNodeInvocationCounter) (ChoiceNode_InvocationNo_total)"},

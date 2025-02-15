@@ -13,7 +13,7 @@ import (
  * execution is not possible, the request will be dropped   */
 type EdgeOnlyPolicy struct{}
 
-func (p *EdgeOnlyPolicy) SubmitInfos(data ReturnedOutputData) {
+func (p *EdgeOnlyPolicy) SubmitInfos(data ReturnedQueryMetrics) {
 	timestamp := time.Now()
 	dataMap[timestamp] = data //adding actual data to historical data
 

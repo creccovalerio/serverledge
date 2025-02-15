@@ -9,11 +9,11 @@ import (
 	"github.com/grussorusso/serverledge/internal/node"
 )
 
-var currentDataGcep ReturnedOutputData
+var currentDataGcep ReturnedQueryMetrics
 
 type GreedyCloudEdgePolicy struct{}
 
-func (p *GreedyCloudEdgePolicy) SubmitInfos(data ReturnedOutputData) {
+func (p *GreedyCloudEdgePolicy) SubmitInfos(data ReturnedQueryMetrics) {
 	timestamp := time.Now()
 	dataMap[timestamp] = data //adding actual data to historical data
 	currentDataGcep = data
@@ -92,7 +92,7 @@ func (p *GreedyCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 					fmt.Println("**************************************  End estimation")
 					localParallelRespTime = append(localParallelRespTime, estimatedLocalResidualRespTime)
 					remoteParallelRespTime = append(remoteParallelRespTime, estimatedRemoteResidualRespTime)
-					fmt.Println("**************************************  Lists: ", localParallelRespTime, remoteParallelRespTime, tTransfer, tReturn)
+					fmt.Println("**************************************  Lists: ", localParallelRespTime, remoteParallelRespTime)
 
 				}
 				/* find the max (local&remote) resp time to pass to policy */
@@ -105,7 +105,7 @@ func (p *GreedyCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 				fmt.Println("**************************************  Start estimation from node: ", currentNodes[0])
 				estimatedLocalResidualRespTime, estimatedRemoteResidualRespTime = computeResidualLocalAndRemoteExecutionRespTime(r, currentNodes[0], localRespTime, remoteRespTime, currentDataGcep)
 				fmt.Println("**************************************  End estimation")
-				fmt.Println("**************************************  Estimated Times: ", estimatedLocalResidualRespTime, estimatedRemoteResidualRespTime, tTransfer, tReturn)
+				fmt.Println("**************************************  Estimated Times: ", estimatedLocalResidualRespTime, estimatedRemoteResidualRespTime, tTransfer, tReturn, tSaving)
 			}
 
 		} else {

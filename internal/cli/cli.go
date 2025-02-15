@@ -588,7 +588,7 @@ func executeProfiling(paramsList []string, fcOffload bool, isInProfiling bool) {
 func createComposition(cmd *cobra.Command, args []string) {
 
 	var allParams [][]string
-	var nProfilingRounds = 30
+	var nProfilingRounds = 150
 
 	if compName == "" || jsonSrc == "" {
 		cmd.Help()

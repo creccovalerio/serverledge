@@ -7,7 +7,7 @@ import (
 
 type CloudOnlyPolicy struct{}
 
-func (p *CloudOnlyPolicy) SubmitInfos(data ReturnedOutputData) {
+func (p *CloudOnlyPolicy) SubmitInfos(data ReturnedQueryMetrics) {
 	timestamp := time.Now()
 	dataMap[timestamp] = data //adding actual data to historical data
 

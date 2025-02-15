@@ -22,7 +22,7 @@ import (
 )
 
 var requests chan *scheduledRequest
-var dataMap map[time.Time]ReturnedFunctionOutputData
+var dataMap map[time.Time]ReturnedFunctionQueryMetrics
 
 var parentCtx context.Context
 
@@ -35,7 +35,7 @@ var offloadingClient *http.Client
 func Run(p Policy) {
 	requests = make(chan *scheduledRequest, 500)
 	completions = make(chan *completion, 500)
-	dataMap = make(map[time.Time]ReturnedFunctionOutputData)
+	dataMap = make(map[time.Time]ReturnedFunctionQueryMetrics)
 
 	// initialize Resources resources
 	availableCores := runtime.NumCPU()

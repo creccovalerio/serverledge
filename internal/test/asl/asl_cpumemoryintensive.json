@@ -29,7 +29,7 @@
       "FirstMatchState": {
         "Comment": "Lang=Python",
         "Type": "Task",
-        "Resource": "sumMatrix",
+        "Resource": "f3",
         "Next": "ChoiceState2"
       },
 
@@ -66,42 +66,42 @@
       "NextPrimeState": {
         "Comment": "Lang=Python",
         "Type": "Task",
-        "Resource": "greatestPrime",
+        "Resource": "f2",
         "Next": "NextMatrixState"
       },
 
       "NextMatrixState": {
         "Comment": "Lang=Python",
         "Type": "Task",
-        "Resource": "sumMatrix",
+        "Resource": "f3",
         "Next": "NextPrimeState2"
       },
 
       "NextPrimeState2": {
         "Comment": "Lang=Python",
         "Type": "Task",
-        "Resource": "greatestPrime",
+        "Resource": "f2",
         "Next": "NextMatrixState2"
       },
 
       "NextMatrixState2": {
         "Comment": "Lang=Python",
         "Type": "Task",
-        "Resource": "smoothSumMatrix",
+        "Resource": "f4",
         "Next": "NextMatrixState3"
       },
 
       "NextMatrixState3": {
         "Comment": "Lang=Python",
         "Type": "Task",
-        "Resource": "smoothSumMatrix",
+        "Resource": "f4",
         "Next": "NextMatrixState4"
       },
 
       "NextMatrixState4": {
         "Comment": "Lang=Python",
         "Type": "Task",
-        "Resource": "inc",
+        "Resource": "f1",
         "End": true
       }
     }

@@ -9,11 +9,11 @@ import (
 	"github.com/grussorusso/serverledge/internal/node"
 )
 
-var currentDataDgcep ReturnedOutputData
+var currentDataDgcep ReturnedQueryMetrics
 
 type DynGreedyCloudEdgePolicy struct{}
 
-func (p *DynGreedyCloudEdgePolicy) SubmitInfos(data ReturnedOutputData) {
+func (p *DynGreedyCloudEdgePolicy) SubmitInfos(data ReturnedQueryMetrics) {
 	timestamp := time.Now()
 	dataMap[timestamp] = data //adding actual data to historical data
 	currentDataDgcep = data

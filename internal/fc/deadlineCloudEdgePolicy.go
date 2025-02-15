@@ -7,16 +7,15 @@ import (
 
 	"github.com/grussorusso/serverledge/internal/config"
 	"github.com/grussorusso/serverledge/internal/node"
-	"github.com/grussorusso/serverledge/utils"
 )
 
-var currentDataDcep ReturnedOutputData
+var currentDataDcep ReturnedQueryMetrics
 
 /* DeadlineCloudEdgePolicy execute Cloud offloading only if the         *
  * user specified FcMaxRespTime is less than the profiled avgFcRespTime */
 type DeadlineCloudEdgePolicy struct{}
 
-func (p *DeadlineCloudEdgePolicy) SubmitInfos(data ReturnedOutputData) {
+func (p *DeadlineCloudEdgePolicy) SubmitInfos(data ReturnedQueryMetrics) {
 	timestamp := time.Now()
 	dataMap[timestamp] = data //adding actual data to historical data
 	currentDataDcep = data
@@ -41,12 +40,10 @@ func (p *DeadlineCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 	totAvailableMem := int64(config.GetInt(config.POOL_MEMORY_MB, 1024))
 	totAvailableCPUs := config.GetFloat(config.POOL_CPUS, float64(availableCores))
 
-	key := fmt.Sprintf("%s_%s", r.Fc.Name, utils.FormatParams(r.Params))
 	fmt.Println("------------------------------------------------------------")
 	fmt.Printf("Scheduled workflow: %s with policy: DEADLINE_CLOUD/EDGE\n", r.Fc.Name)
 	fmt.Println("------------------------------------------------------------")
 	fmt.Printf("Avg Fc [%s] Response Time: %f\n", r.Fc.Name, currentDataDcep.AvgFcRespTime[r.Fc.Name])
-	fmt.Printf("Avg Fc [%s] Response Time Per Input %s: %f\n", r.Fc.Name, utils.FormatParams(r.Params), currentDataDcep.AvgFcRespTimePerInput[key])
 	fmt.Printf("Max RespTime admitted for the Fc [%s]: %f\n", r.Fc.Name, r.QoSMaxFcRespT)
 	fmt.Println("------------------------------------------------------------")
 
@@ -72,7 +69,7 @@ func (p *DeadlineCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 	 *  - The user specified fcMaxRespTime is less than the *
 	 *    profiled fc avg response time                     */
 	if r.CanDoFcOffloading && !r.IsInProfilingMode && r.Iteration == 0 &&
-		(r.QoSMaxFcRespT > 0 && r.QoSMaxFcRespT <= currentDataDcep.AvgFcRespTimePerInput[key]) {
+		(r.QoSMaxFcRespT > 0 && r.QoSMaxFcRespT <= currentDataDcep.AvgFcRespTime[r.Fc.Name]) {
 		/* if fc offloading flag is active and the user specified FcMaxRespTime *
 		 * is smaller than the AvgFcRespTime: schedule decision -> Offload      */
 		fmt.Println("Scheduling the remaining part of the workflow on the cloud...")

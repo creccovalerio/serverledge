@@ -21,7 +21,7 @@ func findMaxRespTime(respTimes []float64) float64 {
 	return max
 }
 
-func computeResidualLocalAndRemoteExecutionRespTime(r *scheduledFcRequest, nodeId DagNodeId, localRespTime float64, remoteRespTime float64, metrics ReturnedOutputData) (float64, float64) {
+func computeResidualLocalAndRemoteExecutionRespTime(r *scheduledFcRequest, nodeId DagNodeId, localRespTime float64, remoteRespTime float64, metrics ReturnedQueryMetrics) (float64, float64) {
 	node, ok := r.Fc.Workflow.Find(nodeId)
 	if !ok {
 		return 0.0, 0.0

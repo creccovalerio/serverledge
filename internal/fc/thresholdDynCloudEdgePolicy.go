@@ -14,7 +14,7 @@ import (
  * if the amount of available resources is lower than a certain threshold.      */
 type ThresholdDynCloudEdgePolicy struct{}
 
-func (p *ThresholdDynCloudEdgePolicy) SubmitInfos(data ReturnedOutputData) {
+func (p *ThresholdDynCloudEdgePolicy) SubmitInfos(data ReturnedQueryMetrics) {
 	timestamp := time.Now()
 	dataMap[timestamp] = data //adding actual data to historical data
 

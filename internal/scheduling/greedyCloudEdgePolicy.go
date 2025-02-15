@@ -8,7 +8,7 @@ import (
 	"github.com/grussorusso/serverledge/internal/node"
 )
 
-var currentDataGcep ReturnedFunctionOutputData
+var currentDataGcep ReturnedFunctionQueryMetrics
 
 // GreedyCloudEdgePolicy supports Cloud Offloading only if the local execution time
 // is greater of the remote execution time, otherwise it execute the function locally.
@@ -16,7 +16,7 @@ var currentDataGcep ReturnedFunctionOutputData
 // If not enough resources are available and offloading is disabled, drops the request.
 type GreedyCloudEdgePolicy struct{}
 
-func (p *GreedyCloudEdgePolicy) SubmitInfos(data ReturnedFunctionOutputData) {
+func (p *GreedyCloudEdgePolicy) SubmitInfos(data ReturnedFunctionQueryMetrics) {
 	timestamp := time.Now()
 	dataMap[timestamp] = data
 	currentDataGcep = data

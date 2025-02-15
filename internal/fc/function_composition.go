@@ -25,7 +25,7 @@ var offloadingClient *http.Client
 var requests chan *scheduledFcRequest
 var completions chan *completion
 var remoteServerUrl string
-var dataMap map[time.Time]ReturnedOutputData
+var dataMap map[time.Time]ReturnedQueryMetrics
 var reqIds []ReqId // slice of ReqId to delete pd & progress periodically
 
 // FunctionComposition is a serverless Function Composition
@@ -40,7 +40,6 @@ type scheduledFcRequest struct {
 	*CompositionRequest
 	progress          *Progress
 	fcDecisionChannel chan fcSchedDecision
-	priority          float64
 }
 
 type completion struct {
@@ -61,21 +60,19 @@ const (
 	BEST_EFFORT_EXECUTION        = 3
 )
 
-type ReturnedOutputData struct {
-	AvgTotalColdStartsTime      map[string]float64
-	AvgFunDurationTime          map[string]float64
-	AvgFunRemoteDurationTime    map[string]float64
-	AvgOutputFunSize            map[string]float64
-	AvgOutputFunRemoteSize      map[string]float64
-	AvgFcRespTime               map[string]float64
-	AvgFcRemoteRespTime         map[string]float64
-	AvgSavingInfosTime          map[string]float64
-	AvgFcRespTimePerInput       map[string]float64
-	AvgFcRemoteRespTimePerInput map[string]float64
-	AvgFcTTransferTime          map[string]float64
-	AvgFcTReturnTime            map[string]float64
-	NoChoiceNodeInvocations     map[string]float64
-	NoBranchInvocations         map[string]float64
+type ReturnedQueryMetrics struct {
+	AvgTotalColdStartsTime   map[string]float64
+	AvgFunDurationTime       map[string]float64
+	AvgFunRemoteDurationTime map[string]float64
+	AvgOutputFunSize         map[string]float64
+	AvgOutputFunRemoteSize   map[string]float64
+	AvgFcRespTime            map[string]float64
+	AvgFcRemoteRespTime      map[string]float64
+	AvgSavingInfosTime       map[string]float64
+	AvgFcTTransferTime       map[string]float64
+	AvgFcTReturnTime         map[string]float64
+	NoChoiceNodeInvocations  map[string]float64
+	NoBranchInvocations      map[string]float64
 }
 
 type ExecutionReportId string
@@ -281,7 +278,7 @@ func DeletePdAndProgressFromEtcd() {
 func Run(p FcPolicy) {
 	requests = make(chan *scheduledFcRequest, 500)
 	completions = make(chan *completion, 500)
-	dataMap = make(map[time.Time]ReturnedOutputData)
+	dataMap = make(map[time.Time]ReturnedQueryMetrics)
 
 	// initialize Resources resources
 	availableCores := runtime.NumCPU()

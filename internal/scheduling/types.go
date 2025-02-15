@@ -5,7 +5,7 @@ import (
 	"github.com/grussorusso/serverledge/internal/function"
 )
 
-type ReturnedFunctionOutputData struct {
+type ReturnedFunctionQueryMetrics struct {
 	AvgTotalColdStartsTime   map[string]float64
 	AvgFunDurationTime       map[string]float64
 	AvgFunRemoteDurationTime map[string]float64

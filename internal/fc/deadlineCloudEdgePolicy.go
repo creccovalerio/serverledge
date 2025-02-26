@@ -65,7 +65,7 @@ func (p *DeadlineCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 	}
 
 	/* Decide to execute the workflow to a cloud node if:   *
-	 *	- workflow offloading is active;                    *
+	 *  - workflow offloading is active;                    *
 	 *  - The user specified fcMaxRespTime is less than the *
 	 *    profiled fc avg response time                     */
 	if r.CanDoFcOffloading && !r.IsInProfilingMode && r.Iteration == 0 &&

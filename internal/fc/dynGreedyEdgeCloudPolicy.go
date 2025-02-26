@@ -96,14 +96,15 @@ func (p *DynGreedyCloudEdgePolicy) OnArrival(r *scheduledFcRequest) {
 			/* find the max (local&remote) resp time to pass to policy */
 			estimatedLocalResidualRespTime = findMaxRespTime(localParallelRespTime)
 			estimatedRemoteResidualRespTime = findMaxRespTime(remoteParallelRespTime)
-			fmt.Println("**************************************  Estimated Times: ", estimatedLocalResidualRespTime, estimatedRemoteResidualRespTime)
+			fmt.Println("**************************************  Estimated Times: ", estimatedLocalResidualRespTime, estimatedRemoteResidualRespTime, tTransfer, tReturn, tSaving)
 
 		} else {
 			/* handling all the other kind of nodes */
 			fmt.Println("**************************************  Start estimation from node: ", currentNodes[0])
 			estimatedLocalResidualRespTime, estimatedRemoteResidualRespTime = computeResidualLocalAndRemoteExecutionRespTime(r, currentNodes[0], localRespTime, remoteRespTime, currentDataDgcep)
 			fmt.Println("**************************************  End estimation")
-			fmt.Println("**************************************  Estimated Times: ", estimatedLocalResidualRespTime, estimatedRemoteResidualRespTime)
+			fmt.Println("**************************************  Estimated Times: ", estimatedLocalResidualRespTime, estimatedRemoteResidualRespTime, tTransfer, tReturn, tSaving)
+
 		}
 
 	} else {

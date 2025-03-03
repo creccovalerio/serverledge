@@ -58,8 +58,13 @@ func (p *GreedyCloudEdgePolicy) OnArrival(r *scheduledRequest) {
 		}
 	}
 
+	if r.IsInProfileLatencyMode {
+		handleCloudOffload(r)
+	}
+
 	if r.CanDoOffloading {
-		if currentDataGcep.AvgFunRemoteDurationTime[r.Fun.Name] <= currentDataGcep.AvgFunDurationTime[r.Fun.Name] {
+		fmt.Printf("Remote Exec: %f <= Local Exec: %f", currentDataGcep.AvgFunOffloadLatency[r.Fun.Name]+currentDataGcep.AvgFunRemoteDurationTime[r.Fun.Name], currentDataGcep.AvgFunDurationTime[r.Fun.Name])
+		if (currentDataGcep.AvgFunOffloadLatency[r.Fun.Name] + currentDataGcep.AvgFunRemoteDurationTime[r.Fun.Name]) <= currentDataGcep.AvgFunDurationTime[r.Fun.Name] {
 			/* if function offloading flag is active and AvgRemoteFunctionDurationTime is <= than *
 			 * LocalAvgFunctionDurationTime: sched decision -> Function Offload                   */
 			fmt.Println("Scheduling function on the cloud...")

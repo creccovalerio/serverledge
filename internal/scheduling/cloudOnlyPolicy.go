@@ -39,7 +39,7 @@ func (p *CloudOnlyPolicy) OnArrival(r *scheduledRequest) {
 		}
 	}
 
-	if r.CanDoOffloading {
+	if r.CanDoOffloading || r.IsInProfileLatencyMode {
 		handleCloudOffload(r)
 	} else {
 		dropRequest(r)

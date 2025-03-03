@@ -79,6 +79,7 @@ func InvokeFunction(c echo.Context) error {
 	r.ExecReport.SchedAction = ""
 	r.ExecReport.OffloadLatency = 0.0
 	r.IsInComposition = false
+	r.IsInProfileLatencyMode = invocationRequest.IsInProfileLatencyMode
 
 	// Tracing
 	if telemetry.DefaultTracer != nil {

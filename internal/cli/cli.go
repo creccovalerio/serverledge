@@ -111,6 +111,7 @@ var verbose bool
 var returnOutput bool
 var rmFnOnDeletion bool
 var profilingFlag bool
+var profileFunOffloadLatencyFlag bool
 
 func Init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
@@ -125,6 +126,7 @@ func Init() {
 	invokeCmd.Flags().StringVarP(&paramsFile, "params_file", "j", "", "File containing parameters (JSON)")
 	invokeCmd.Flags().BoolVarP(&asyncInvocation, "async", "a", false, "Asynchronous invocation")
 	invokeCmd.Flags().BoolVarP(&returnOutput, "ret_output", "o", false, "Capture function output (if supported by used runtime)")
+	invokeCmd.Flags().BoolVarP(&profileFunOffloadLatencyFlag, "profiling", "q", false, "Allowing profiling of the function with a specified input")
 
 	rootCmd.AddCommand(createCmd)
 	createCmd.Flags().StringVarP(&funcName, "function", "f", "", "name of the function")
@@ -236,10 +238,11 @@ func invoke(cmd *cobra.Command, args []string) {
 		Params:   paramsMap,
 		QoSClass: api.DecodeServiceClass(qosClass),
 		// QoSClass:        qosClass,
-		QoSMaxRespT:     qosMaxRespT,
-		CanDoOffloading: true,
-		ReturnOutput:    returnOutput,
-		Async:           asyncInvocation}
+		QoSMaxRespT:            qosMaxRespT,
+		CanDoOffloading:        true,
+		ReturnOutput:           returnOutput,
+		Async:                  asyncInvocation,
+		IsInProfileLatencyMode: profileFunOffloadLatencyFlag}
 	invocationBody, err := json.Marshal(request)
 	if err != nil {
 		showHelpAndExit(cmd)

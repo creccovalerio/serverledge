@@ -14,11 +14,12 @@ type Request struct {
 	Arrival    time.Time
 	ExecReport ExecutionReport
 	RequestQoS
-	CanDoOffloading   bool
-	Async             bool
-	IsInComposition   bool // not currently used
-	IsInProfilingMode bool
-	ReturnOutput      bool
+	CanDoOffloading        bool
+	Async                  bool
+	IsInComposition        bool // not currently used
+	IsInProfilingMode      bool
+	IsInProfileLatencyMode bool
+	ReturnOutput           bool
 }
 
 type RequestQoS struct {

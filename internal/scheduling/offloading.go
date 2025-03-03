@@ -13,6 +13,7 @@ import (
 	"github.com/grussorusso/serverledge/internal/function"
 	"github.com/grussorusso/serverledge/internal/node"
 	"github.com/grussorusso/serverledge/internal/registration"
+	"github.com/grussorusso/serverledge/utils"
 )
 
 func pickEdgeNodeForOffloading(r *scheduledRequest) (url string) {
@@ -77,6 +78,8 @@ func Offload(r *function.Request, serverUrl string) error {
 	// It was originially computed as "report.Arrival - sendingTime"
 	r.ExecReport.FunctionName = r.Fun.Name
 	r.ExecReport.OffloadLatency = now.Sub(sendingTime).Seconds() - r.ExecReport.Duration - r.ExecReport.InitTime
+	fmt.Println("FUNCTION OFFLOAD LATENCY: ", r.Fun.Name, r.ExecReport.OffloadLatency)
+	utils.CreateAndRecordNewHistogramMetric("Function.OffloadLatency", "Network latency during function offload", r.Ctx, r.ExecReport.OffloadLatency, "functionOffloadLatency", r.Fun.Name)
 	r.ExecReport.SchedAction = "Offloaded"
 
 	return nil

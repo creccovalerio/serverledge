@@ -70,6 +70,8 @@ func queryPrometheus(wg *sync.WaitGroup, queryInfos queryInfos, api v1.API, ctx 
 		dataToSend.AvgFcTTransferTime = outputMap
 	case "AvgFcTReturnTime":
 		dataToSend.AvgFcTReturnTime = outputMap
+	case "AvgFuncOffloadLatency":
+		dataFuncToSend.AvgFunOffloadLatency = outputMap
 	case "NoChoiceNodeInvocations":
 		dataToSend.NoChoiceNodeInvocations = outputMap
 	case "NoBranchInvocations":
@@ -155,6 +157,7 @@ func PeriodicalMetricsRetrieveFromPrometheus() {
 		{"AvgSavingInfosTime", "sum(FunctionComposition_SavingInfosDuration_seconds_sum) by (functionCompositionSavingInfoDuration) / clamp_min(sum(FunctionComposition_SavingInfosDuration_seconds_count) by (functionCompositionSavingInfoDuration), 1)"},
 		{"AvgFcTTranferTime", "sum(FunctionComposition_TTransferTime_seconds_sum) by (functionCompositionTTransferTime) / clamp_min(sum(FunctionComposition_TTransferTime_seconds_count) by (functionCompositionTTransferTime), 1)"},
 		{"AvgFcTReturnTime", "sum(FunctionComposition_TReturnTime_seconds_sum) by (functionCompositionTReturnTime) / clamp_min(sum(FunctionComposition_TReturnTime_seconds_count) by (functionCompositionTReturnTime), 1)"},
+		{"AvgFuncOffloadLatency", "sum(Function_OffloadLatency_seconds_sum) by (functionOffloadLatency) / clamp_min(sum(Function_OffloadLatency_seconds_count) by (functionOffloadLatency), 1)"},
 		{"NoChoiceNodeInvocations", "sum by (fcChoiceNodeInvocationCounter) (ChoiceNode_InvocationNo_total)"},
 		{"NoBranchInvocations", "sum by (fcBranchInvocationCounter) (BranchInvocations_total)"},
 	}

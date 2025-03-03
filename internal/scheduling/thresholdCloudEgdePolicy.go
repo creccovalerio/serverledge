@@ -53,6 +53,10 @@ func (p *ThresholdCloudEdgePolicy) OnArrival(r *scheduledRequest) {
 		}
 	}
 
+	if r.IsInProfileLatencyMode {
+		handleCloudOffload(r)
+	}
+
 	if r.CanDoOffloading {
 		/* checking if the scheduled function has been already containerized (resources already allocated)*/
 		containerID, err := node.AcquireWarmContainer(r.Fun)

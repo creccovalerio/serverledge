@@ -8,13 +8,14 @@ import (
 
 // InvocationRequest is an external invocation of a function (from API or CLI)
 type InvocationRequest struct {
-	Params            map[string]interface{}
-	QoSClass          function.ServiceClass
-	QoSMaxRespT       float64
-	CanDoOffloading   bool
-	CanDoFcOffloading bool
-	Async             bool
-	ReturnOutput      bool
+	Params                 map[string]interface{}
+	QoSClass               function.ServiceClass
+	QoSMaxRespT            float64
+	CanDoOffloading        bool
+	CanDoFcOffloading      bool
+	Async                  bool
+	IsInProfileLatencyMode bool
+	ReturnOutput           bool
 }
 
 type PrewarmingRequest struct {

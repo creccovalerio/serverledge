@@ -9,6 +9,7 @@ type ReturnedFunctionQueryMetrics struct {
 	AvgTotalColdStartsTime   map[string]float64
 	AvgFunDurationTime       map[string]float64
 	AvgFunRemoteDurationTime map[string]float64
+	AvgFunOffloadLatency     map[string]float64
 	AvgOutputFunSize         map[string]float64
 	AvgOutputFunRemoteSize   map[string]float64
 }
